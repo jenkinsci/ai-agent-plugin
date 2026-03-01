@@ -44,17 +44,21 @@ public class AiAgentBuildExecutionTest {
                 jenkins.createProject(AiAgentProject.class, "ai-build-setup-script");
         project.setAgentType(AgentType.CLAUDE_CODE);
         project.setPrompt("hello");
-        project.setSetupScript("echo SETUP_MARKER_OK");
-        project.setCommandOverride("echo '{\"type\":\"assistant\",\"message\":\"after setup\"}'");
+        project.setSetupScript("export SETUP_DONE=yes");
+        project.setCommandOverride(
+                "echo \"{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":\\\"setup=$SETUP_DONE\\\"}\"");
         project.setFailOnAgentError(true);
         project.save();
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
-        String log = jenkins.getLog(build);
-        assertTrue("Setup script output should appear in log", log.contains("SETUP_MARKER_OK"));
+        AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
+        assertNotNull(action);
+        assertTrue(action.getRawLogFile().exists());
+        String rawLog =
+                new String(java.nio.file.Files.readAllBytes(action.getRawLogFile().toPath()));
         assertTrue(
-                "Agent should run after setup",
-                log.indexOf("SETUP_MARKER_OK") < log.indexOf("after setup"));
+                "Agent command should see variable exported by setup script",
+                rawLog.contains("setup=yes"));
     }
 
     @Test
@@ -73,7 +77,6 @@ public class AiAgentBuildExecutionTest {
         FreeStyleBuild build = project.scheduleBuild2(0).get();
         jenkins.assertBuildStatus(Result.FAILURE, build);
         String log = jenkins.getLog(build);
-        assertTrue("Should report setup failure", log.contains("Setup script failed"));
         assertFalse("Agent should NOT have run", log.contains("should not run"));
     }
 
@@ -91,7 +94,9 @@ public class AiAgentBuildExecutionTest {
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String log = jenkins.getLog(build);
-        assertFalse("Should not mention setup script", log.contains("Running setup script"));
+        assertFalse(
+                "Should not mention setup script",
+                log.contains("Setup script will run before the agent"));
     }
 
     @Test
@@ -110,6 +115,27 @@ public class AiAgentBuildExecutionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String log = jenkins.getLog(build);
         assertTrue("Setup script should see custom env vars", log.contains("GOT_secret_value_123"));
+    }
+
+    @Test
+    public void setupScript_exportsFlowToAgentCommand() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        AiAgentProject project =
+                jenkins.createProject(AiAgentProject.class, "ai-build-setup-export");
+        project.setAgentType(AgentType.CLAUDE_CODE);
+        project.setPrompt("hello");
+        project.setSetupScript("export MY_SETUP_VAR=from_setup_script");
+        project.setCommandOverride(
+                "echo \"{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":\\\"val=$MY_SETUP_VAR\\\"}\"");
+        project.setFailOnAgentError(true);
+        project.save();
+
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+        String log = jenkins.getLog(build);
+        assertTrue(
+                "Exported var from setup should be visible in agent command",
+                log.contains("val=from_setup_script"));
     }
 
     @Test

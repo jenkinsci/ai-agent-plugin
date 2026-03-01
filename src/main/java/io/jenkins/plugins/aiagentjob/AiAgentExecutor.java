@@ -24,6 +24,8 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -111,32 +113,35 @@ final class AiAgentExecutor {
         extraEnv.put("AI_AGENT_BUILD_NUMBER", String.valueOf(build.getNumber()));
 
         String setupScript = Util.replaceMacro(Util.fixNull(project.getSetupScript()), env).trim();
-        if (!setupScript.isEmpty()) {
-            listener.getLogger().println("[ai-agent] Running setup script...");
-            int setupExit = runShellScript(launcher, runDirectory, extraEnv, setupScript, listener);
-            if (setupExit != 0) {
-                listener.getLogger()
-                        .println("[ai-agent] Setup script failed with exit code: " + setupExit);
-                action.markCompleted(setupExit);
-                return setupExit;
-            }
-            listener.getLogger().println("[ai-agent] Setup script completed.");
+
+        List<String> agentCommand;
+        if (!commandOverride.isEmpty()) {
+            agentCommand = List.of(commandOverride);
+        } else {
+            agentCommand = AiAgentCommandFactory.buildDefaultCommand(project, prompt);
         }
 
         List<String> command;
-        if (!commandOverride.isEmpty()) {
+        if (!setupScript.isEmpty() && launcher.isUnix()) {
+            String combinedScript = buildCombinedScript(setupScript, agentCommand, commandOverride);
+            command = buildShellCommand(setupScript, runDirectory, combinedScript, launcher);
+        } else if (!commandOverride.isEmpty()) {
             if (launcher.isUnix()) {
                 command = List.of("/bin/sh", "-lc", commandOverride);
             } else {
                 command = List.of("cmd", "/c", commandOverride);
             }
         } else {
-            command = AiAgentCommandFactory.buildDefaultCommand(project, prompt);
+            command = agentCommand;
+        }
+
+        if (!setupScript.isEmpty()) {
+            listener.getLogger().println("[ai-agent] Setup script will run before the agent.");
         }
 
         String commandLine =
                 commandOverride.isEmpty()
-                        ? AiAgentCommandFactory.commandAsString(command)
+                        ? AiAgentCommandFactory.commandAsString(agentCommand)
                         : commandOverride;
         action.markStarted(
                 project.getAgentType(),
@@ -185,31 +190,61 @@ final class AiAgentExecutor {
         return exitCode;
     }
 
-    private static int runShellScript(
-            Launcher launcher,
-            FilePath runDirectory,
-            Map<String, String> extraEnv,
-            String script,
-            BuildListener listener)
-            throws IOException, InterruptedException {
-        FilePath tempScript = runDirectory.createTextTempFile("ai-agent-setup", ".sh", script);
-        try {
-            List<String> cmd;
-            if (launcher.isUnix()) {
-                cmd = List.of("/bin/sh", "-le", tempScript.getRemote());
-            } else {
-                cmd = List.of("cmd", "/c", tempScript.getRemote());
-            }
-            return launcher.launch()
-                    .cmds(cmd)
-                    .pwd(runDirectory)
-                    .envs(extraEnv)
-                    .stdout(listener)
-                    .stderr(listener.getLogger())
-                    .join();
-        } finally {
-            tempScript.delete();
+    /**
+     * Builds the combined script that sources the setup preamble and then execs the agent command
+     * in the same shell session, so exported variables flow through.
+     */
+    private static String buildCombinedScript(
+            String setupScript, List<String> agentCommand, String commandOverride) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(setupScript);
+        if (!setupScript.endsWith("\n")) {
+            sb.append('\n');
         }
+        if (!commandOverride.isEmpty()) {
+            sb.append("exec ").append(commandOverride).append('\n');
+        } else {
+            sb.append("exec");
+            for (String token : agentCommand) {
+                sb.append(' ').append(shellQuote(token));
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Builds the shell command to run the combined script, honoring a shebang line the same way the
+     * Jenkins Shell build step does: if the script starts with {@code #!}, that interpreter is
+     * used; otherwise {@code /bin/sh -xe} is used as the default.
+     */
+    private static List<String> buildShellCommand(
+            String setupScript, FilePath runDirectory, String combinedScript, Launcher launcher)
+            throws IOException, InterruptedException {
+        FilePath tempScript =
+                runDirectory.createTextTempFile("ai-agent-setup", ".sh", combinedScript);
+        tempScript.chmod(0755);
+
+        if (setupScript.startsWith("#!")) {
+            int end = setupScript.indexOf('\n');
+            if (end < 0) end = setupScript.length();
+            String shebangLine = setupScript.substring(0, end).trim();
+            List<String> args = new ArrayList<>(Arrays.asList(Util.tokenize(shebangLine)));
+            args.set(0, args.get(0).substring(2));
+            args.add(tempScript.getRemote());
+            return args;
+        }
+        return List.of("/bin/sh", "-xe", tempScript.getRemote());
+    }
+
+    private static String shellQuote(String s) {
+        if (s.isEmpty()) {
+            return "''";
+        }
+        if (s.matches("[a-zA-Z0-9_./:=@-]+")) {
+            return s;
+        }
+        return "'" + s.replace("'", "'\\''") + "'";
     }
 
     private static FilePath resolveRunDirectory(FilePath workspace, String workDirValue) {

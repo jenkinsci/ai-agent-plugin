@@ -90,9 +90,11 @@ nvm use 22
 npm install -g @anthropic-ai/claude-code
 ```
 
-The script runs via `/bin/sh -le` (login shell, exit on error) in the configured working directory
-with the same environment variables as the agent. If the script exits with a non-zero code the
-build fails immediately without launching the agent.
+The setup script and agent command run in the **same shell session**, so any `export`ed
+variables, PATH changes, or sourced dotfiles are available to the agent. Supports shebang
+lines (e.g. `#!/bin/zsh`) just like the Jenkins Shell build step — if no shebang is present,
+`/bin/sh -xe` is used. If the script exits with a non-zero code the build fails immediately
+without launching the agent.
 
 ### Credential Injection
 

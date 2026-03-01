@@ -59,8 +59,9 @@
       <f:textarea name="setupScript" value="${it.setupScript}" />
       <f:description>
         Shell commands executed before the agent starts (e.g. source dotfiles,
-        install tools, configure PATH, export secrets). Runs via /bin/sh -le on
-        Unix or cmd /c on Windows. Leave empty to skip.
+        install tools, configure PATH, export secrets). Exported variables are
+        available to the agent. Supports shebang lines (e.g. #!/bin/zsh) just
+        like the Jenkins Shell build step. Leave empty to skip.
       </f:description>
     </f:entry>
 

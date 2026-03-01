@@ -122,9 +122,11 @@ final class AiAgentExecutor {
         }
 
         List<String> command;
+        FilePath tempSetupScript = null;
         if (!setupScript.isEmpty() && launcher.isUnix()) {
             String combinedScript = buildCombinedScript(setupScript, agentCommand, commandOverride);
-            command = buildShellCommand(setupScript, runDirectory, combinedScript, launcher);
+            tempSetupScript = writeTempScript(workspace, combinedScript);
+            command = buildShellCommand(setupScript, tempSetupScript);
         } else if (!commandOverride.isEmpty()) {
             if (launcher.isUnix()) {
                 command = List.of("/bin/sh", "-lc", commandOverride);
@@ -181,6 +183,16 @@ final class AiAgentExecutor {
         } finally {
             outputHandler.close();
             ExecutionRegistry.unregister(build);
+            if (tempSetupScript != null) {
+                try {
+                    tempSetupScript.delete();
+                } catch (IOException e) {
+                    listener.getLogger()
+                            .println(
+                                    "[ai-agent] Warning: could not delete temp script: "
+                                            + e.getMessage());
+                }
+            }
         }
 
         if (outputHandler.wasDeniedByApproval()) {
@@ -214,17 +226,26 @@ final class AiAgentExecutor {
     }
 
     /**
+     * Writes the combined script to a temp file in the system temp directory so the AI agent never
+     * sees it in the project workspace.
+     */
+    private static FilePath writeTempScript(FilePath workspace, String combinedScript)
+            throws IOException, InterruptedException {
+        FilePath tempDir =
+                new FilePath(
+                        workspace.getChannel(),
+                        new File(System.getProperty("java.io.tmpdir")).getAbsolutePath());
+        FilePath tempScript = tempDir.createTextTempFile("ai-agent-setup", ".sh", combinedScript);
+        tempScript.chmod(0755);
+        return tempScript;
+    }
+
+    /**
      * Builds the shell command to run the combined script, honoring a shebang line the same way the
      * Jenkins Shell build step does: if the script starts with {@code #!}, that interpreter is
      * used; otherwise {@code /bin/sh -xe} is used as the default.
      */
-    private static List<String> buildShellCommand(
-            String setupScript, FilePath runDirectory, String combinedScript, Launcher launcher)
-            throws IOException, InterruptedException {
-        FilePath tempScript =
-                runDirectory.createTextTempFile("ai-agent-setup", ".sh", combinedScript);
-        tempScript.chmod(0755);
-
+    private static List<String> buildShellCommand(String setupScript, FilePath tempScript) {
         if (setupScript.startsWith("#!")) {
             int end = setupScript.indexOf('\n');
             if (end < 0) end = setupScript.length();

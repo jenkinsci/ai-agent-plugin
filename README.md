@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/bvolpato/jenkins-ai-agent-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/bvolpato/jenkins-ai-agent-plugin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Jenkins Plugin](https://img.shields.io/badge/Jenkins-2.479+-blue.svg)](https://www.jenkins.io/)
+[![Jenkins Plugin](https://img.shields.io/badge/Jenkins-2.528.3+-blue.svg)](https://www.jenkins.io/)
 
 A Jenkins plugin that adds a native **AI Agent Job** type for running autonomous coding agents
 (Claude Code, Codex CLI, Cursor Agent, OpenCode, Gemini CLI) as first-class Jenkins builds.

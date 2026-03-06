@@ -135,6 +135,12 @@ To package without running tests:
 mvn clean package -DskipTests
 ```
 
+## Official Jenkins Distribution Plan
+
+The step-by-step migration plan to move this plugin into the `jenkinsci` GitHub organization and
+publish through official Jenkins CD is tracked in:
+`docs/jenkins-official-publishing-checklist.md`
+
 ## Development
 
 ```bash

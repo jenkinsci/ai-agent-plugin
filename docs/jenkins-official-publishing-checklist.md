@@ -1,64 +1,97 @@
 # Jenkins Official Publishing Checklist
 
-This checklist tracks the steps to move this plugin from personal GitHub releases to official Jenkins distribution.
+This checklist is the execution plan to move this plugin from a personal repository to official Jenkins distribution.
 
-## 0. Finalize Identity (Blocking)
+## Locked Decisions
 
-- [x] Confirm final plugin ID (`artifactId`) before first official release: `ai-agent-job`.
-- [ ] Confirm GitHub repo name to be hosted in `jenkinsci`.
-- [x] Confirm display name and short description are final.
+- Plugin ID (`artifactId`): `ai-agent-job` (final, must not change after official publication).
+- Target `jenkinsci` repository name: `ai-agent-job-plugin`.
+- Current source repository: `https://github.com/bvolpato/jenkins-ai-agent-plugin`.
 
-Notes:
-- The plugin ID is effectively permanent once officially published.
-- Prefer avoiding `jenkins` and `plugin` words in `artifactId` unless required.
+## 1. Pre-Hosting Readiness (Already Done)
 
-## 1. Repository Hygiene
+- [x] License is present and declared in `pom.xml`.
+- [x] Jenkinsfile is present for Jenkins CI.
+- [x] CI is green on Java 17 and Java 21.
+- [x] Plugin metadata uses stable ID and Jenkins baseline.
+- [x] Security policy and contribution docs are present.
 
-- [x] Add root `LICENSE` file.
-- [x] Keep `pom.xml` license metadata.
-- [x] Add root `Jenkinsfile` for `ci.jenkins.io`.
-- [x] Verify README has usage, configuration, and limitations.
-- [x] Add SECURITY.md (recommended).
+## 2. Open Hosting Request (Next Action)
 
-## 2. Request Hosting in `jenkinsci`
+Open:
+`https://github.com/jenkins-infra/repository-permissions-updater/issues/new/choose`
+Template: `🏠 Hosting request`
 
-- [ ] Open a hosting request in:
-      `https://github.com/jenkins-infra/repository-permissions-updater/issues/new/choose`
-- [ ] Reference this repository and maintainers.
-- [ ] Wait for infra team response about transfer/fork into `jenkinsci`.
+Use these values:
 
-Suggested issue summary:
-- `Hosting request for <plugin-name> Jenkins plugin`
+- Repository URL:
+  `https://github.com/bvolpato/jenkins-ai-agent-plugin`
+- New Repository Name:
+  `ai-agent-job-plugin`
+- Description:
+  `Jenkins plugin that provides a native AI Agent Job type to run coding agents (Claude Code, Codex, Cursor Agent, OpenCode, Gemini CLI) with streamed JSON logs, approvals, and usage stats.`
+- GitHub users to have commit permission:
+  `@bvolpato`
+  `@<add-any-co-maintainers>`
+- Jenkins project users to have release permission:
+  `<your Jenkins account ID(s), not GitHub handles>`
+- Automated release via GitHub Actions:
+  `Yes`
 
-Suggested issue details:
-- Plugin repository URL.
-- Short plugin description.
-- Jenkins Jira ID (if available).
-- Maintainer GitHub IDs.
-- Confirmation that this is intended for official Jenkins distribution.
+## 3. Repository Permissions Updater (RPU) PR
 
-## 3. Release Permissions (RPU)
+After hosting is accepted, ensure a file exists in:
+`https://github.com/jenkins-infra/repository-permissions-updater/tree/master/permissions`
 
-- [ ] Add/merge repository permissions YAML in:
-      `https://github.com/jenkins-infra/repository-permissions-updater`
-- [ ] Include deployer IDs under your plugin artifact path.
-- [ ] Verify Artifactory deploy permission is granted.
+Expected file content shape:
 
-## 4. CD Setup for Jenkins Releases
+```yaml
+---
+name: "ai-agent-job"
+github: "jenkinsci/ai-agent-job-plugin"
+paths:
+  - "org/jenkins-ci/plugins/ai-agent-job"
+developers:
+  - "<jenkins-account-id>"
+cd:
+  enabled: true
+```
 
-- [ ] Add Jenkins plugin CD workflow (`cd.yaml`) after permission is ready.
-- [ ] Ensure required secrets are present (`MAVEN_USERNAME`, `MAVEN_TOKEN`).
-- [ ] Keep GitHub release notes workflow optional; official publication should flow through Jenkins release automation.
+Checklist:
 
-## 5. First Official Release
+- [ ] `developers` contains at least one Jenkins account ID.
+- [ ] `cd.enabled: true` is present.
+- [ ] `github` is `jenkinsci/ai-agent-job-plugin`.
 
-- [ ] Tag from the `jenkinsci/<repo>` repository.
-- [ ] Confirm GitHub Action/Jenkins release pipeline succeeds.
-- [ ] Confirm plugin appears on `https://plugins.jenkins.io/`.
-- [ ] Confirm update center metadata includes the new version.
+## 4. Post-Transfer Repository Update
 
-## 6. Post-Release
+Once the repository exists at `jenkinsci/ai-agent-job-plugin`:
 
-- [ ] Announce plugin availability.
-- [ ] Document upgrade path from pre-official versions.
-- [ ] Monitor issues and user feedback from early adopters.
+- [ ] Update `pom.xml` `<url>` to `https://github.com/jenkinsci/ai-agent-job-plugin`.
+- [ ] Update README badge/link URLs from `bvolpato/jenkins-ai-agent-plugin` to `jenkinsci/ai-agent-job-plugin`.
+- [ ] Keep plugin ID as `ai-agent-job` (no rename).
+
+## 5. Enable Jenkins CD Workflow
+
+Use Jenkins official template:
+`https://raw.githubusercontent.com/jenkinsci/.github/master/workflow-templates/cd.yaml`
+
+Checklist:
+
+- [ ] Add `.github/workflows/cd.yaml`.
+- [ ] Initially prefer `workflow_dispatch` trigger only during cutover.
+- [ ] Enable `check_run` trigger after first successful official release.
+- [ ] Confirm repository secrets appear: `MAVEN_USERNAME`, `MAVEN_TOKEN`.
+
+## 6. First Official Release
+
+- [ ] Merge a PR with a release-triggering label (`bug`, `enhancement`, or `developer`) or run `cd.yaml` manually.
+- [ ] Confirm GitHub Actions CD run is successful.
+- [ ] Confirm release appears on `https://plugins.jenkins.io/ai-agent-job/`.
+- [ ] Confirm update center metadata shows the released version.
+
+## 7. Cleanup and Transition
+
+- [ ] Mark personal-repo `release.yml` flow as legacy or remove it after official CD is stable.
+- [ ] Add a short migration note in README that official releases now come from `jenkinsci/ai-agent-job-plugin`.
+- [ ] Keep `main` on next `-SNAPSHOT` after each release.

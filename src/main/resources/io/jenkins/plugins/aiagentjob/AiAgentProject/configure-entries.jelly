@@ -5,13 +5,14 @@
          xmlns:t="/lib/hudson"
          xmlns:f="/lib/form"
          xmlns:p="/lib/hudson/project">
+  <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentProject.config_codex_fields" />
   <st:include page="configure-common.jelly" />
 
   <p:config-trigger />
 
   <f:section title="AI Agent Execution">
     <f:entry title="Agent Type">
-      <select class="setting-input" name="agentType">
+      <select class="setting-input" id="ai-agent-job-agent-type" name="agentType">
         <j:forEach var="option" items="${it.agentTypes}">
           <f:option value="${option.name()}" selected="${option == it.agentType}">${option.displayName}</f:option>
         </j:forEach>
@@ -65,22 +66,24 @@
       </f:description>
     </f:entry>
 
-    <f:entry title="Use custom Codex config.toml" field="codexCustomConfigEnabled">
-      <f:checkbox name="codexCustomConfigEnabled" checked="${it.codexCustomConfigEnabled}" />
-      <f:description>
-        Only applies when Agent Type is Codex CLI. When enabled, this writes a
-        run-scoped <code>~/.codex/config.toml</code> for the build so settings/MCP can be
-        overridden per job.
-      </f:description>
-    </f:entry>
+    <div data-ai-agent-codex-only="true">
+      <f:entry title="Use custom Codex config.toml" field="codexCustomConfigEnabled">
+        <f:checkbox name="codexCustomConfigEnabled" checked="${it.codexCustomConfigEnabled}" />
+        <f:description>
+          Only applies when Agent Type is Codex CLI. When enabled, this writes a
+          run-scoped <code>~/.codex/config.toml</code> for the build so settings/MCP can be
+          overridden per job.
+        </f:description>
+      </f:entry>
 
-    <f:entry title="Custom Codex config.toml" field="codexCustomConfigToml">
-      <f:textarea name="codexCustomConfigToml" value="${it.codexCustomConfigToml}" />
-      <f:description>
-        TOML content equivalent to <code>~/.codex/config.toml</code>.
-        Stored in job configuration as plain text; keep secrets in Jenkins credentials instead.
-      </f:description>
-    </f:entry>
+      <f:entry title="Custom Codex config.toml" field="codexCustomConfigToml">
+        <f:textarea name="codexCustomConfigToml" value="${it.codexCustomConfigToml}" />
+        <f:description>
+          TOML content equivalent to <code>~/.codex/config.toml</code>.
+          Stored in job configuration as plain text; keep secrets in Jenkins credentials instead.
+        </f:description>
+      </f:entry>
+    </div>
 
     <f:advanced>
       <f:entry title="API Key env var override" field="apiKeyEnvVar">

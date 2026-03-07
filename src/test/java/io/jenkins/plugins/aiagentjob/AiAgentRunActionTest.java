@@ -185,6 +185,38 @@ public class AiAgentRunActionTest {
         assertTrue(events.isEmpty());
     }
 
+    @Test
+    public void summaryJelly_usesExternalResourcesForCspCompliance() throws Exception {
+        String jelly =
+                readResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary.jelly");
+        assertTrue(
+                "summary.jelly should load adjunct resources",
+                jelly.contains(
+                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources\""));
+        assertFalse("summary.jelly should not contain inline style tags", jelly.contains("<style"));
+        assertFalse(
+                "summary.jelly should not contain inline script tags", jelly.contains("<script"));
+        assertFalse(
+                "summary.jelly should not contain inline style attributes",
+                jelly.contains(" style=")
+                        || jelly.contains("style=\"")
+                        || jelly.contains("style='"));
+    }
+
+    @Test
+    public void summaryResources_exist() throws Exception {
+        assertNotNull(
+                "summary CSS resource should exist",
+                getClass()
+                        .getResource(
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.css"));
+        assertNotNull(
+                "summary JS resource should exist",
+                getClass()
+                        .getResource(
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.js"));
+    }
+
     private String buildEchoScript(String fixtureName) throws Exception {
         try (InputStream is = getClass().getResourceAsStream("fixtures/" + fixtureName);
                 BufferedReader reader =
@@ -199,6 +231,13 @@ public class AiAgentRunActionTest {
                 script.append("echo '").append(escaped).append("'");
             }
             return script.toString();
+        }
+    }
+
+    private String readResource(String resourcePath) throws Exception {
+        try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
+            assertNotNull("Resource should exist: " + resourcePath, is);
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 }

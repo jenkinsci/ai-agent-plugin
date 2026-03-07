@@ -5,117 +5,51 @@
          xmlns:t="/lib/hudson"
          xmlns:f="/lib/form">
 
-  <style>
-    .ai-conv { margin: 16px 0; font-family: var(--font-family-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif); }
-    .ai-conv h3 { margin: 0 0 8px 0; font-size: 1.1em; }
-    .ai-conv-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.83em; color: #666; margin-bottom: 12px; }
-    .ai-conv-meta span { background: #f4f4f4; padding: 2px 8px; border-radius: 4px; }
-    .ai-conv-stream { max-height: 700px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
-    .ai-conv-links { margin-top: 8px; font-size: 0.85em; }
-    .ai-conv-links a { margin-right: 16px; }
-    .ai-conv-empty { padding: 12px; color: #888; font-size: 0.9em; }
+  <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
-    /* Event rows */
-    .ai-ev { padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 0.88em; }
-    .ai-ev:last-child { border-bottom: none; }
-
-    /* Category badges */
-    .ai-badge { display: inline-block; font-size: 0.7em; font-weight: 600; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-right: 6px; vertical-align: middle; letter-spacing: 0.03em; }
-    .ai-badge-assistant { background: #e8f5e9; color: #2e7d32; }
-    .ai-badge-user { background: #e3f2fd; color: #1565c0; }
-    .ai-badge-result { background: #e8f5e9; color: #1b5e20; }
-    .ai-badge-error { background: #ffebee; color: #b71c1c; }
-    .ai-badge-thinking { background: #fff3e0; color: #e65100; }
-    .ai-badge-tool_call { background: #e3f2fd; color: #1565c0; }
-    .ai-badge-tool_result { background: #e8eaf6; color: #283593; }
-    .ai-badge-system { background: #f3e5f5; color: #6a1b9a; }
-    .ai-badge-raw { background: #eceff1; color: #546e7a; }
-
-    /* Inline message content (assistant, user, result) */
-    .ai-msg-content { word-break: break-word; color: #222; margin-top: 4px; line-height: 1.5; }
-    .ai-msg-content pre { background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; overflow-x: auto; font-size: 0.9em; }
-    .ai-msg-content code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
-    .ai-msg-content pre code { background: none; padding: 0; }
-    .ai-msg-content ul { margin: 4px 0; padding-left: 20px; }
-    .ai-msg-content li { margin: 2px 0; }
-
-    /* Tool call card */
-    .ai-tool-card { margin-top: 4px; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; }
-    .ai-tool-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f5f5f5; font-size: 0.85em; cursor: pointer; user-select: none; }
-    .ai-tool-header:hover { background: #eeeeee; }
-    .ai-tool-label { font-weight: 600; font-family: monospace; }
-    .ai-tool-input-preview { color: #555; font-family: monospace; font-size: 0.92em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 600px; }
-    .ai-tool-body { border-top: 1px solid #e0e0e0; }
-    .ai-tool-section-label { font-size: 0.72em; font-weight: 600; text-transform: uppercase; color: #888; padding: 4px 10px; background: #fafafa; border-bottom: 1px dashed #e0e0e0; }
-    .ai-tool-section-content { padding: 6px 10px; font-family: monospace; font-size: 0.82em; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; color: #333; }
-
-    /* Thinking (dimmed, collapsible) */
-    .ai-thinking-text { opacity: 0.6; font-style: italic; white-space: pre-wrap; word-break: break-word; margin-top: 2px; }
-
-    /* System message (collapsible) */
-    .ai-system-text { color: #666; font-size: 0.9em; }
-
-    /* Raw JSON toggle */
-    .ai-raw-toggle { font-size: 0.75em; color: #999; cursor: pointer; margin-left: 8px; }
-    .ai-raw-toggle:hover { color: #555; }
-    .ai-raw-json { margin-top: 6px; padding: 8px; background: #fff; border: 1px solid #eee; border-radius: 4px; font-size: 0.78em; white-space: pre-wrap; word-break: break-word; max-height: 250px; overflow-y: auto; font-family: monospace; }
-
-    /* Live indicator */
-    .ai-live { padding: 8px 12px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 6px; margin-bottom: 12px; font-size: 0.9em; display: flex; align-items: center; gap: 8px; }
-    .ai-live .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #90caf9; border-top-color: #1565c0; border-radius: 50%; animation: ai-spin 0.8s linear infinite; }
-    @keyframes ai-spin { to { transform: rotate(360deg); } }
-
-    /* Approvals */
-    .ai-approval-card { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
-    .ai-approval-card .actions { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
-
-    /* Usage stats */
-    .ai-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 6px; margin-top: 10px; font-size: 0.82em; color: #444; }
-    .ai-stats-item { display: flex; align-items: center; gap: 4px; }
-    .ai-stats-label { font-weight: 600; color: #666; }
-    .ai-stats-value { font-family: monospace; color: #222; }
-    .ai-stats-cost { font-weight: 700; color: #1b5e20; }
-    .ai-stats-duration { font-weight: 600; color: #1565c0; }
-  </style>
-
-  <div class="ai-conv" id="ai-agent-root">
-    <h3>
-      <img src="${resURL}/images/svgs/terminal.svg" width="20" height="20"
-           style="vertical-align: middle; margin-right: 4px;" alt="" />
+  <div class="ai-conv"
+       id="ai-agent-root"
+       data-live="${it.live}"
+       data-base-url="${it.urlName}"
+       data-progressive-events-url="${it.urlName}/progressiveEvents"
+       data-approve-url="${it.urlName}/approve"
+       data-deny-url="${it.urlName}/deny"
+       data-raw-url="${it.urlName}/raw">
+    <h3 class="ai-conv-title">
+      <img src="${resURL}/images/svgs/terminal.svg" width="20" height="20" class="ai-title-icon" alt="" />
       AI Agent Conversation
     </h3>
 
     <div class="ai-conv-meta" id="ai-agent-meta">
-      <span><strong>Agent:</strong> ${it.agentType}</span>
+      <span class="ai-meta-badge"><strong>Agent:</strong> ${it.agentType}</span>
       <j:if test="${it.model != ''}">
-        <span><strong>Model:</strong> ${it.model}</span>
+        <span class="ai-meta-badge"><strong>Model:</strong> ${it.model}</span>
       </j:if>
       <j:if test="${it.yoloMode}">
-        <span style="background:#fff3e0;color:#e65100;">YOLO</span>
+        <span class="ai-meta-badge ai-meta-badge-yolo">YOLO</span>
       </j:if>
       <j:if test="${it.approvalsEnabled}">
-        <span style="background:#e3f2fd;color:#1565c0;">Approvals</span>
+        <span class="ai-meta-badge ai-meta-badge-approvals">Approvals</span>
       </j:if>
       <span id="ai-agent-exit-badge">
         <j:if test="${it.exitCode != null}">
           <j:choose>
             <j:when test="${it.exitCode == 0}">
-              <span style="background:#e8f5e9;color:#2e7d32;">Exit: ${it.exitCode}</span>
+              <span class="ai-meta-badge ai-meta-badge-exit-success">Exit: ${it.exitCode}</span>
             </j:when>
             <j:otherwise>
-              <span style="background:#ffebee;color:#b71c1c;">Exit: ${it.exitCode}</span>
+              <span class="ai-meta-badge ai-meta-badge-exit-failure">Exit: ${it.exitCode}</span>
             </j:otherwise>
           </j:choose>
         </j:if>
       </span>
     </div>
 
-    <!-- Live build -->
     <j:if test="${it.live}">
       <div id="ai-agent-live-banner">
         <div class="ai-live">
           <span class="spinner"></span>
-          Build is running — conversation streams automatically.
+          Build is running - conversation streams automatically.
         </div>
       </div>
       <div id="ai-agent-approvals-container"></div>
@@ -123,7 +57,6 @@
       <div id="ai-agent-empty" class="ai-conv-empty">Waiting for conversation events...</div>
     </j:if>
 
-    <!-- Completed build: server-side rendering -->
     <j:if test="${!it.live}">
       <j:set var="events" value="${it.events}" />
       <j:choose>
@@ -134,17 +67,14 @@
           <div class="ai-conv-stream">
             <j:forEach var="ev" items="${events}" varStatus="loop">
               <div class="ai-ev">
-
-                <!-- Assistant / User / Result / Error: show content directly -->
                 <j:if test="${ev.inlineContent}">
                   <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
                   <div class="ai-msg-content ai-md-src" data-md="${ev.content}"></div>
                 </j:if>
 
-                <!-- Tool call: show name + input preview, click to expand -->
                 <j:if test="${ev.category == 'tool_call'}">
                   <details>
-                    <summary class="ai-tool-header" style="list-style:none;">
+                    <summary class="ai-tool-header ai-details-summary">
                       <span class="ai-badge ai-badge-tool_call">TOOL</span>
                       <span class="ai-tool-label">${ev.label}</span>
                       <j:if test="${ev.toolInput != ''}">
@@ -160,14 +90,13 @@
                   </details>
                 </j:if>
 
-                <!-- Tool result: show name + output excerpt, click to expand full -->
                 <j:if test="${ev.category == 'tool_result'}">
                   <details>
-                    <summary class="ai-tool-header" style="list-style:none;">
+                    <summary class="ai-tool-header ai-details-summary">
                       <span class="ai-badge ai-badge-tool_result">OUTPUT</span>
                       <span class="ai-tool-label">${ev.label}</span>
                       <j:if test="${ev.toolOutput != ''}">
-                        <span class="ai-tool-input-preview" style="color:#283593;">
+                        <span class="ai-tool-input-preview ai-tool-output-preview">
                           <j:choose>
                             <j:when test="${ev.toolOutput.length() > 80}">
                               ${ev.toolOutput.substring(0, 80)}...
@@ -186,20 +115,18 @@
                   </details>
                 </j:if>
 
-                <!-- Thinking: collapsed by default -->
                 <j:if test="${ev.category == 'thinking'}">
                   <details>
-                    <summary style="cursor:pointer;user-select:none;">
+                    <summary class="ai-details-summary">
                       <span class="ai-badge ai-badge-thinking">Thinking</span>
                     </summary>
                     <div class="ai-thinking-text">${ev.content}</div>
                   </details>
                 </j:if>
 
-                <!-- System / Raw: collapsed by default -->
                 <j:if test="${ev.category == 'system' or ev.category == 'raw'}">
                   <details>
-                    <summary style="cursor:pointer;user-select:none;">
+                    <summary class="ai-details-summary">
                       <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
                       <span class="ai-system-text">
                         <j:choose>
@@ -210,10 +137,9 @@
                         </j:choose>
                       </span>
                     </summary>
-                    <div class="ai-system-text" style="margin-top:4px;white-space:pre-wrap;">${ev.content}</div>
+                    <div class="ai-system-text ai-system-detail">${ev.content}</div>
                   </details>
                 </j:if>
-
               </div>
             </j:forEach>
           </div>
@@ -221,7 +147,6 @@
       </j:choose>
     </j:if>
 
-    <!-- Usage stats for completed builds -->
     <j:if test="${!it.live}">
       <j:set var="stats" value="${it.usageStats}" />
       <j:if test="${stats.hasData()}">
@@ -284,7 +209,6 @@
       </j:if>
     </j:if>
 
-    <!-- Usage stats placeholder for live builds -->
     <j:if test="${it.live}">
       <div id="ai-agent-stats-container"></div>
     </j:if>
@@ -293,233 +217,4 @@
       <a href="${it.urlName}/raw">Raw stream-json log</a>
     </div>
   </div>
-
-  <!-- Shared markdown helpers -->
-  <script><![CDATA[
-    var aiAgentMd = (function() {
-      function esc(text) {
-        var d = document.createElement('div');
-        d.appendChild(document.createTextNode(text || ''));
-        return d.innerHTML;
-      }
-      function inlineMd(text) {
-        var s = esc(text);
-        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-        s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-        s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        s = s.replace(/_([^_]+)_/g, '<em>$1</em>');
-        return s;
-      }
-      function mdToHtml(text) {
-        if (!text) return '';
-        var lines = text.split('\n');
-        var out = '', inCode = false, inList = false;
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i];
-          if (line.indexOf('```') === 0) {
-            if (inList) { out += '</ul>'; inList = false; }
-            if (inCode) { out += '</code></pre>'; inCode = false; }
-            else { out += '<pre><code>'; inCode = true; }
-            continue;
-          }
-          if (inCode) { out += esc(line) + '\n'; continue; }
-          var t = line.trim();
-          if (t.indexOf('- ') === 0 || t.indexOf('* ') === 0) {
-            if (!inList) { out += '<ul>'; inList = true; }
-            out += '<li>' + inlineMd(t.substring(2)) + '</li>';
-            continue;
-          }
-          if (inList) { out += '</ul>'; inList = false; }
-          if (t.indexOf('### ') === 0) out += '<strong>' + inlineMd(t.substring(4)) + '</strong><br/>';
-          else if (t.indexOf('## ') === 0) out += '<strong>' + inlineMd(t.substring(3)) + '</strong><br/>';
-          else if (t.indexOf('# ') === 0) out += '<strong>' + inlineMd(t.substring(2)) + '</strong><br/>';
-          else if (t === '---') out += '<hr/>';
-          else if (t === '') out += '<br/>';
-          else out += inlineMd(line) + '<br/>';
-        }
-        if (inCode) out += '</code></pre>';
-        if (inList) out += '</ul>';
-        while (out.length >= 5 && out.substring(out.length - 5) === '<br/>') out = out.substring(0, out.length - 5);
-        return out;
-      }
-      return { esc: esc, mdToHtml: mdToHtml, inlineMd: inlineMd };
-    })();
-    (function() {
-      var elems = document.querySelectorAll('.ai-md-src');
-      for (var i = 0; i < elems.length; i++) {
-        var md = elems[i].getAttribute('data-md');
-        elems[i].innerHTML = aiAgentMd.mdToHtml(md || '');
-      }
-    })();
-  ]]></script>
-
-  <!-- JavaScript polling only for live builds -->
-  <j:if test="${it.live}">
-    <script>
-      (function() {
-        var baseUrl = document.querySelector('.ai-conv-links a').href.replace(/\/raw$/, '');
-        var nextStart = 0;
-        var isLive = true;
-        var container = document.getElementById('ai-agent-events-container');
-        var emptyMsg = document.getElementById('ai-agent-empty');
-        var liveBanner = document.getElementById('ai-agent-live-banner');
-        var approvalsContainer = document.getElementById('ai-agent-approvals-container');
-        var exitBadge = document.getElementById('ai-agent-exit-badge');
-        var statsContainer = document.getElementById('ai-agent-stats-container');
-        var pollInterval = 2000;
-        var eventCount = 0;
-
-        var esc = aiAgentMd.esc;
-        var mdToHtml = aiAgentMd.mdToHtml;
-
-        function excerpt(text, len) {
-          if (!text) return '';
-          if (text.length &lt;= len) return esc(text);
-          return esc(text.substring(0, len)) + '...';
-        }
-
-        function renderEvent(ev) {
-          var cat = ev.category;
-          var html = '<div class="ai-ev">';
-
-          if (cat === 'assistant' || cat === 'user' || cat === 'result' || cat === 'error') {
-            html += '<span class="ai-badge ai-badge-' + cat + '">' + esc(ev.label) + '</span>';
-            html += '<div class="ai-msg-content">' + mdToHtml(ev.content) + '</div>';
-
-          } else if (cat === 'tool_call') {
-            html += '<details>';
-            html += '<summary class="ai-tool-header" style="list-style:none;">';
-            html += '<span class="ai-badge ai-badge-tool_call">TOOL</span>';
-            html += '<span class="ai-tool-label">' + esc(ev.label) + '</span>';
-            if (ev.toolInput) html += '<span class="ai-tool-input-preview">' + excerpt(ev.toolInput, 120) + '</span>';
-            html += '</summary>';
-            html += '<div class="ai-tool-body">';
-            if (ev.toolInput) {
-              html += '<div class="ai-tool-section-label">Input</div>';
-              html += '<div class="ai-tool-section-content">' + esc(ev.toolInput) + '</div>';
-            }
-            html += '</div></details>';
-
-          } else if (cat === 'tool_result') {
-            html += '<details>';
-            html += '<summary class="ai-tool-header" style="list-style:none;">';
-            html += '<span class="ai-badge ai-badge-tool_result">OUTPUT</span>';
-            html += '<span class="ai-tool-label">' + esc(ev.label) + '</span>';
-            if (ev.toolOutput) html += '<span class="ai-tool-input-preview" style="color:#283593;">' + excerpt(ev.toolOutput, 80) + '</span>';
-            html += '</summary>';
-            html += '<div class="ai-tool-body">';
-            if (ev.toolOutput) {
-              html += '<div class="ai-tool-section-label">Output</div>';
-              html += '<div class="ai-tool-section-content">' + esc(ev.toolOutput) + '</div>';
-            }
-            html += '</div></details>';
-
-          } else if (cat === 'thinking') {
-            html += '<details>';
-            html += '<summary style="cursor:pointer;user-select:none;">';
-            html += '<span class="ai-badge ai-badge-thinking">Thinking</span>';
-            html += '</summary>';
-            html += '<div class="ai-thinking-text">' + esc(ev.content) + '</div>';
-            html += '</details>';
-
-          } else {
-            html += '<details>';
-            html += '<summary style="cursor:pointer;user-select:none;">';
-            html += '<span class="ai-badge ai-badge-' + cat + '">' + esc(ev.label) + '</span>';
-            html += '<span class="ai-system-text">' + excerpt(ev.content, 100) + '</span>';
-            html += '</summary>';
-            html += '<div class="ai-system-text" style="margin-top:4px;white-space:pre-wrap;">' + esc(ev.content) + '</div>';
-            html += '</details>';
-          }
-
-          html += '</div>';
-          return html;
-        }
-
-        function renderApprovals(approvals) {
-          if (!approvals || approvals.length === 0) { approvalsContainer.innerHTML = ''; return; }
-          var html = '';
-          for (var i = 0; i &lt; approvals.length; i++) {
-            var pa = approvals[i];
-            html += '<div class="ai-approval-card">';
-            html += '<strong>Approval required:</strong> ' + esc(pa.toolName);
-            html += ' <span style="color:#888;font-size:0.85em;">— ' + esc(pa.inputSummary) + '</span>';
-            html += '<div class="actions">';
-            html += '<form method="post" action="' + baseUrl + '/approve" style="display:inline;">';
-            html += '<input type="hidden" name="id" value="' + esc(pa.id) + '" />';
-            html += '<button type="submit">Approve</button></form>';
-            html += '<form method="post" action="' + baseUrl + '/deny" style="display:inline;">';
-            html += '<input type="hidden" name="id" value="' + esc(pa.id) + '" />';
-            html += '<input type="text" name="reason" placeholder="reason (optional)" style="width:180px;" />';
-            html += '<button type="submit">Deny</button></form>';
-            html += '</div></div>';
-          }
-          approvalsContainer.innerHTML = html;
-        }
-
-        function renderStats(s) {
-          if (!s) return;
-          var html = '<div class="ai-stats">';
-          if (s.costDisplay) html += '<div class="ai-stats-item"><span class="ai-stats-label">Cost:</span><span class="ai-stats-value ai-stats-cost">' + esc(s.costDisplay) + '</span></div>';
-          if (s.durationDisplay) html += '<div class="ai-stats-item"><span class="ai-stats-label">Duration:</span><span class="ai-stats-value ai-stats-duration">' + esc(s.durationDisplay) + '</span></div>';
-          if (s.inputTokens > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Input:</span><span class="ai-stats-value">' + s.inputTokens.toLocaleString() + ' tokens</span></div>';
-          if (s.outputTokens > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Output:</span><span class="ai-stats-value">' + s.outputTokens.toLocaleString() + ' tokens</span></div>';
-          if (s.cacheReadTokens > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Cache Read:</span><span class="ai-stats-value">' + s.cacheReadTokens.toLocaleString() + ' tokens</span></div>';
-          if (s.cacheWriteTokens > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Cache Write:</span><span class="ai-stats-value">' + s.cacheWriteTokens.toLocaleString() + ' tokens</span></div>';
-          if (s.reasoningTokens > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Reasoning:</span><span class="ai-stats-value">' + s.reasoningTokens.toLocaleString() + ' tokens</span></div>';
-          if (s.numTurns > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Turns:</span><span class="ai-stats-value">' + s.numTurns + '</span></div>';
-          if (s.toolCalls > 0) html += '<div class="ai-stats-item"><span class="ai-stats-label">Tool Calls:</span><span class="ai-stats-value">' + s.toolCalls + '</span></div>';
-          html += '</div>';
-          statsContainer.innerHTML = html;
-        }
-
-        function updateExitBadge(exitCode) {
-          if (exitCode === null || exitCode === undefined) { exitBadge.innerHTML = ''; return; }
-          var bg = exitCode === 0 ? '#e8f5e9' : '#ffebee';
-          var fg = exitCode === 0 ? '#2e7d32' : '#b71c1c';
-          exitBadge.innerHTML = '<span style="background:'+bg+';color:'+fg+';">Exit: ' + exitCode + '</span>';
-        }
-
-        function poll() {
-          var url = baseUrl + '/progressiveEvents?start=' + nextStart;
-          var xhr = new XMLHttpRequest();
-          xhr.open('GET', url, true);
-          xhr.onreadystatechange = function() {
-            if (xhr.readyState !== 4) return;
-            if (xhr.status !== 200) { schedulePoll(); return; }
-            try {
-              var data = JSON.parse(xhr.responseText);
-              var events = data.events || [];
-              var shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight &lt; 50;
-              if (events.length > 0) {
-                var html = '';
-                for (var i = 0; i &lt; events.length; i++) { html += renderEvent(events[i]); eventCount++; }
-                container.insertAdjacentHTML('beforeend', html);
-                if (shouldScroll) container.scrollTop = container.scrollHeight;
-              }
-              nextStart = data.nextStart || nextStart;
-              isLive = data.live;
-              emptyMsg.style.display = (eventCount === 0) ? '' : 'none';
-              liveBanner.style.display = isLive ? '' : 'none';
-              renderApprovals(data.pendingApprovals);
-              updateExitBadge(data.exitCode);
-              if (data.usageStats) renderStats(data.usageStats);
-              if (!isLive &amp;&amp; eventCount === 0) emptyMsg.textContent = 'No conversation events captured.';
-            } catch(e) { /* parse failure */ }
-            schedulePoll();
-          };
-          xhr.send();
-        }
-
-        function schedulePoll() {
-          if (isLive) setTimeout(poll, pollInterval);
-          else liveBanner.style.display = 'none';
-        }
-
-        poll();
-      })();
-    </script>
-  </j:if>
-
 </j:jelly>

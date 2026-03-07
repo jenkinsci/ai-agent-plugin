@@ -165,6 +165,14 @@ final class AiAgentLogParser {
             return classifyCodexItem(lineNumber, typeLower, item, rawDetails);
         }
 
+        if (typeLower.startsWith("thread.") || typeLower.startsWith("turn.")) {
+            String text = extractText(json);
+            if (text.isEmpty()) {
+                return ParsedLine.raw(lineNumber, "");
+            }
+            return ParsedLine.system(lineNumber, "System", text, rawDetails);
+        }
+
         // --- Cursor Agent ---
         if (typeLower.equals("thinking")) {
             String thinkText = firstNonEmpty(json, "text");
@@ -283,12 +291,19 @@ final class AiAgentLogParser {
             long lineNumber, String typeLower, JSONObject item, String rawDetails) {
         String itemType = normalize(item.optString("type"));
         String status = normalize(item.optString("status"));
-        String itemText = extractText(item);
 
         if (itemType.contains("reason")) {
+            String itemText = extractText(item);
+            if (itemText.isEmpty()) {
+                return ParsedLine.raw(lineNumber, "");
+            }
             return ParsedLine.thinking(lineNumber, itemText, rawDetails);
         }
         if (itemType.contains("agent_message") || itemType.contains("message")) {
+            String itemText = extractText(item);
+            if (itemText.isEmpty()) {
+                return ParsedLine.raw(lineNumber, "");
+            }
             return ParsedLine.message(lineNumber, "assistant", "Assistant", itemText, rawDetails);
         }
         if (itemType.contains("command_execution")
@@ -296,14 +311,26 @@ final class AiAgentLogParser {
                 || itemType.contains("tool_call")
                 || itemType.contains("tool")) {
             String toolCallId = firstNonEmpty(item, "id", "call_id", "tool_call_id");
-            String toolName = firstNonEmpty(item, "tool_name", "toolName", "name");
+            String toolName = extractCodexToolName(item, itemType);
             if (toolName.isEmpty() && itemType.contains("command_execution")) {
                 toolName = "bash";
             }
             if (typeLower.contains("started") || status.contains("in_progress")) {
-                return ParsedLine.toolCall(lineNumber, toolName, itemText, rawDetails, toolCallId);
+                String toolInput = extractCodexToolInput(item);
+                if (toolInput.isEmpty()) {
+                    return ParsedLine.raw(lineNumber, "");
+                }
+                return ParsedLine.toolCall(lineNumber, toolName, toolInput, rawDetails, toolCallId);
             }
-            return ParsedLine.toolResult(lineNumber, toolName, itemText, rawDetails, toolCallId);
+            String toolOutput = extractCodexToolOutput(item);
+            if (toolOutput.isEmpty()) {
+                return ParsedLine.raw(lineNumber, "");
+            }
+            return ParsedLine.toolResult(lineNumber, toolName, toolOutput, rawDetails, toolCallId);
+        }
+        String itemText = extractText(item);
+        if (itemText.isEmpty()) {
+            return ParsedLine.raw(lineNumber, "");
         }
         return ParsedLine.system(lineNumber, "System", itemText, rawDetails);
     }
@@ -387,6 +414,55 @@ final class AiAgentLogParser {
         }
         String text = firstNonEmpty(json, "output", "text", "result");
         if (!text.isEmpty()) return text;
+        return "";
+    }
+
+    private static String extractCodexToolInput(JSONObject item) {
+        String command = firstNonEmpty(item, "command");
+        if (!command.isEmpty()) return command;
+
+        JSONObject parameters = item.optJSONObject("parameters");
+        if (parameters != null) {
+            String parameterText = extractToolInput(parameters, firstNonEmpty(item, "name"));
+            if (!parameterText.isEmpty()) return parameterText;
+        }
+
+        JSONObject arguments = item.optJSONObject("arguments");
+        if (arguments != null) {
+            String argumentText = extractToolInput(arguments, firstNonEmpty(item, "name"));
+            if (!argumentText.isEmpty()) return argumentText;
+            return arguments.toString(2);
+        }
+
+        String text = firstNonEmpty(item, "input", "query", "path", "url");
+        if (!text.isEmpty()) return text;
+        return extractText(item);
+    }
+
+    private static String extractCodexToolOutput(JSONObject item) {
+        String output = firstNonEmpty(item, "aggregated_output", "output", "stdout", "stderr");
+        if (!output.isEmpty()) return output;
+
+        JSONObject result = item.optJSONObject("result");
+        if (result != null) {
+            output = firstNonEmpty(result, "output", "stdout", "stderr", "text", "result");
+            if (!output.isEmpty()) return output;
+            if (!result.isEmpty()) return result.toString(2);
+        }
+
+        if (item.containsKey("exit_code")) {
+            int exitCode = item.optInt("exit_code");
+            if (exitCode != 0) {
+                return "Exit code: " + exitCode;
+            }
+        }
+        return "";
+    }
+
+    private static String extractCodexToolName(JSONObject item, String itemType) {
+        String toolName = firstNonEmpty(item, "tool_name", "toolName", "name");
+        if (!toolName.isEmpty()) return toolName;
+        if (itemType.contains("mcp")) return "mcp";
         return "";
     }
 

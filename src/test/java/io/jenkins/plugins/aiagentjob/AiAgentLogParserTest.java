@@ -134,6 +134,7 @@ public class AiAgentLogParserTest {
         assertFalse("Should have tool call events", toolCalls.isEmpty());
         for (AiAgentLogParser.EventView tc : toolCalls) {
             assertNotNull("Tool call should have summary", tc.getSummary());
+            assertFalse("Tool call should show the command input", tc.getToolInput().isEmpty());
         }
     }
 
@@ -143,6 +144,20 @@ public class AiAgentLogParserTest {
         long started = events.stream().filter(e -> "tool_call".equals(e.getCategory())).count();
         long completed = events.stream().filter(e -> "tool_result".equals(e.getCategory())).count();
         assertEquals("Each started command should have a completed result", started, completed);
+    }
+
+    @Test
+    public void codexConversation_completedCommandsShowAggregatedOutput() throws IOException {
+        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
+        List<AiAgentLogParser.EventView> toolResults =
+                events.stream()
+                        .filter(e -> "tool_result".equals(e.getCategory()))
+                        .collect(Collectors.toList());
+
+        assertFalse("Should have tool result events", toolResults.isEmpty());
+        for (AiAgentLogParser.EventView tr : toolResults) {
+            assertFalse("Tool result should show command output", tr.getToolOutput().isEmpty());
+        }
     }
 
     // ======================== Cursor Agent Tests ========================
@@ -315,6 +330,34 @@ public class AiAgentLogParserTest {
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
         assertEquals("tool_call", line.toEventView().getCategory());
         assertTrue(line.isToolCall());
+        assertEquals("ls -la", line.toEventView().getToolInput());
+    }
+
+    @Test
+    public void parseLine_handlesCodexCommandExecutionCompletedWithAggregatedOutput() {
+        String json =
+                "{\"type\":\"item.completed\",\"item\":{\"id\":\"cmd1\",\"type\":\"command_execution\",\"status\":\"completed\",\"command\":\"ls -la\",\"aggregated_output\":\"README.md\\npom.xml\"}}";
+        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        assertEquals("tool_result", line.toEventView().getCategory());
+        assertEquals("README.md\npom.xml", line.toEventView().getToolOutput());
+    }
+
+    @Test
+    public void parseLine_skipsCodexStructuralEventsWithoutDisplayableText() {
+        AiAgentLogParser.ParsedLine threadStarted =
+                AiAgentLogParser.parseLine(1, "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}");
+        AiAgentLogParser.ParsedLine turnStarted =
+                AiAgentLogParser.parseLine(2, "{\"type\":\"turn.started\"}");
+        assertTrue(threadStarted.toEventView().isEmpty());
+        assertTrue(turnStarted.toEventView().isEmpty());
+    }
+
+    @Test
+    public void parseLine_skipsEmptyCodexAgentMessage() {
+        String json =
+                "{\"type\":\"item.started\",\"item\":{\"id\":\"msg1\",\"type\":\"agent_message\",\"status\":\"in_progress\",\"text\":\"\"}}";
+        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        assertTrue(line.toEventView().isEmpty());
     }
 
     @Test
@@ -459,7 +502,7 @@ public class AiAgentLogParserTest {
     @Test
     public void codexConversation_hasCorrectEventCount() throws IOException {
         List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
-        assertEquals("10-line codex fixture should produce 10 events", 10, events.size());
+        assertEquals("10-line codex fixture should produce 9 visible events", 9, events.size());
     }
 
     @Test

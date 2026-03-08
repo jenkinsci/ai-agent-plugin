@@ -24,18 +24,22 @@ public final class ExecutionRegistry {
 
     private ExecutionRegistry() {}
 
-    public static LiveExecution register(Run<?, ?> run) {
+    public static LiveExecution register(Run<?, ?> run, int invocationId) {
         LiveExecution liveExecution = new LiveExecution();
-        LIVE_RUNS.put(run.getExternalizableId(), liveExecution);
+        LIVE_RUNS.put(key(run, invocationId), liveExecution);
         return liveExecution;
     }
 
-    public static LiveExecution get(Run<?, ?> run) {
-        return LIVE_RUNS.get(run.getExternalizableId());
+    public static LiveExecution get(Run<?, ?> run, int invocationId) {
+        return LIVE_RUNS.get(key(run, invocationId));
     }
 
-    public static void unregister(Run<?, ?> run) {
-        LIVE_RUNS.remove(run.getExternalizableId());
+    public static void unregister(Run<?, ?> run, int invocationId) {
+        LIVE_RUNS.remove(key(run, invocationId));
+    }
+
+    private static String key(Run<?, ?> run, int invocationId) {
+        return run.getExternalizableId() + "#" + invocationId;
     }
 
     /** Live mutable state for one running build. */

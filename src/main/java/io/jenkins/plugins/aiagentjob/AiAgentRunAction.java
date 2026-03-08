@@ -11,36 +11,33 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.GET;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 /**
- * Per-build action that stores agent execution metadata and provides the inline conversation view
- * on the build page. Also exposes Stapler endpoints for progressive event streaming, approval
- * handling, and raw log access.
+ * Per-build action that stores AI agent invocation metadata and provides the inline conversation
+ * view on the build page. Supports multiple invocations in a single build.
  */
 public class AiAgentRunAction implements Action, RunAction2 {
-    private static final String RAW_LOG_FILE = "ai-agent-stream.jsonl";
+    private static final String RAW_LOG_FILE_PREFIX = "ai-agent-stream-";
+    private static final String RAW_LOG_FILE_SUFFIX = ".jsonl";
 
     private transient Run<?, ?> run;
-    private String agentType = "";
-    private String model = "";
-    private String commandLine = "";
-    private boolean yoloMode;
-    private boolean approvalsEnabled;
-    private long startedAtMillis;
-    private long completedAtMillis;
-    private Integer exitCode;
+    private List<InvocationRecord> invocations = new ArrayList<>();
+    private int nextInvocationId = 1;
 
     public static AiAgentRunAction getOrCreate(Run<?, ?> run) {
         AiAgentRunAction existing = run.getAction(AiAgentRunAction.class);
@@ -78,87 +75,131 @@ public class AiAgentRunAction implements Action, RunAction2 {
         this.run = run;
     }
 
-    public synchronized void markStarted(
+    public synchronized int markStarted(
             AgentType agentType,
             String model,
             String commandLine,
             boolean yoloMode,
             boolean approvalsEnabled)
             throws IOException {
-        this.agentType = agentType.getDisplayName();
-        this.model = model == null ? "" : model;
-        this.commandLine = commandLine == null ? "" : commandLine;
-        this.yoloMode = yoloMode;
-        this.approvalsEnabled = approvalsEnabled;
-        this.startedAtMillis = System.currentTimeMillis();
-        this.completedAtMillis = 0L;
-        this.exitCode = null;
+        int id = nextInvocationId++;
+        InvocationRecord invocation =
+                new InvocationRecord(
+                        id,
+                        agentType.getDisplayName(),
+                        model == null ? "" : model,
+                        commandLine == null ? "" : commandLine,
+                        yoloMode,
+                        approvalsEnabled,
+                        System.currentTimeMillis());
+        invocations.add(invocation);
         run.save();
+        return id;
     }
 
-    public synchronized void markCompleted(int exitCode) throws IOException {
-        this.exitCode = exitCode;
-        this.completedAtMillis = System.currentTimeMillis();
-        run.save();
-    }
-
-    public Run<?, ?> getRun() {
-        return run;
-    }
-
-    public String getAgentType() {
-        return agentType;
-    }
-
-    public String getModel() {
-        if (model != null && !model.isEmpty()) return model;
-        try {
-            String detected = AgentUsageStats.fromLogFile(getRawLogFile()).getDetectedModel();
-            if (!detected.isEmpty()) return detected;
-        } catch (IOException ignored) {
+    public synchronized void markCompleted(int invocationId, int exitCode) throws IOException {
+        InvocationRecord invocation = getInvocation(invocationId);
+        if (invocation == null) {
+            return;
         }
-        return model;
+        invocation.exitCode = exitCode;
+        invocation.completedAtMillis = System.currentTimeMillis();
+        run.save();
     }
 
-    public String getCommandLine() {
-        return commandLine;
+    public synchronized List<InvocationRecord> getInvocations() {
+        return Collections.unmodifiableList(new ArrayList<>(invocations));
     }
 
-    public boolean isYoloMode() {
-        return yoloMode;
+    public synchronized List<InvocationRecord> getInvocationsNewestFirst() {
+        List<InvocationRecord> copy = new ArrayList<>(invocations);
+        Collections.reverse(copy);
+        return Collections.unmodifiableList(copy);
     }
 
-    public boolean isApprovalsEnabled() {
-        return approvalsEnabled;
+    public synchronized boolean hasInvocations() {
+        return !invocations.isEmpty();
     }
 
-    public String getStartedAt() {
-        if (startedAtMillis <= 0L) {
+    public synchronized int getLatestInvocationId() {
+        InvocationRecord latest = latestInvocation();
+        return latest == null ? 0 : latest.id;
+    }
+
+    public synchronized String getAgentType() {
+        InvocationRecord latest = latestInvocation();
+        return latest == null ? "" : latest.agentType;
+    }
+
+    public synchronized String getModel() {
+        InvocationRecord latest = latestInvocation();
+        if (latest == null) {
             return "";
         }
-        return new Date(startedAtMillis).toString();
+        if (latest.model != null && !latest.model.isEmpty()) {
+            return latest.model;
+        }
+        try {
+            String detected = AgentUsageStats.fromLogFile(getRawLogFile(latest.id)).getDetectedModel();
+            if (!detected.isEmpty()) {
+                return detected;
+            }
+        } catch (IOException ignored) {
+        }
+        return latest.model;
+    }
+
+    public synchronized String getCommandLine() {
+        InvocationRecord latest = latestInvocation();
+        return latest == null ? "" : latest.commandLine;
+    }
+
+    public synchronized boolean isYoloMode() {
+        InvocationRecord latest = latestInvocation();
+        return latest != null && latest.yoloMode;
+    }
+
+    public synchronized boolean isApprovalsEnabled() {
+        InvocationRecord latest = latestInvocation();
+        return latest != null && latest.approvalsEnabled;
+    }
+
+    public synchronized String getStartedAt() {
+        InvocationRecord latest = latestInvocation();
+        if (latest == null || latest.startedAtMillis <= 0L) {
+            return "";
+        }
+        return new Date(latest.startedAtMillis).toString();
     }
 
     public synchronized String getCompletedAt() {
-        if (completedAtMillis <= 0L) {
+        InvocationRecord latest = latestInvocation();
+        if (latest == null || latest.completedAtMillis <= 0L) {
             return null;
         }
-        return new Date(completedAtMillis).toString();
+        return new Date(latest.completedAtMillis).toString();
     }
 
     public synchronized Integer getExitCode() {
-        return exitCode;
+        InvocationRecord latest = latestInvocation();
+        return latest == null ? null : latest.exitCode;
     }
 
-    public boolean isLive() {
-        return run != null && run.isBuilding();
+    public synchronized boolean isLive() {
+        InvocationRecord latest = latestInvocation();
+        return latest != null && run != null && run.isBuilding() && latest.exitCode == null;
     }
 
     public List<ExecutionRegistry.PendingApproval> getPendingApprovals() {
-        if (run == null) {
+        int invocationId = resolveRequestedInvocationId();
+        return getPendingApprovals(invocationId);
+    }
+
+    public List<ExecutionRegistry.PendingApproval> getPendingApprovals(int invocationId) {
+        if (run == null || invocationId <= 0) {
             return Collections.emptyList();
         }
-        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run);
+        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run, invocationId);
         if (liveExecution == null) {
             return Collections.emptyList();
         }
@@ -166,65 +207,133 @@ public class AiAgentRunAction implements Action, RunAction2 {
     }
 
     public List<AiAgentLogParser.EventView> getEvents() {
+        int invocationId = resolveRequestedInvocationId();
+        return getEvents(invocationId);
+    }
+
+    public List<AiAgentLogParser.EventView> getEvents(int invocationId) {
+        File raw = getRawLogFile(invocationId);
+        if (raw == null || !raw.exists()) {
+            return Collections.emptyList();
+        }
         try {
-            return AiAgentLogParser.parse(getRawLogFile());
+            return AiAgentLogParser.parse(raw);
         } catch (IOException e) {
             return Collections.singletonList(
                     new AiAgentLogParser.EventView(
                             -1,
                             "error",
                             "Error",
-                            "Failed to read raw agent logs: " + e.toString(),
+                            "Failed to read raw agent logs: " + e,
                             "",
                             "",
                             "",
-                            java.time.Instant.now()));
+                            Instant.now(),
+                            false));
         }
     }
 
-    /** Returns aggregated token usage and cost stats from the JSONL log. */
     public AgentUsageStats getUsageStats() {
+        int invocationId = resolveRequestedInvocationId();
+        return getUsageStats(invocationId);
+    }
+
+    public AgentUsageStats getUsageStats(int invocationId) {
+        File raw = getRawLogFile(invocationId);
+        if (raw == null || !raw.exists()) {
+            return new AgentUsageStats();
+        }
         try {
-            return AgentUsageStats.fromLogFile(getRawLogFile());
+            return AgentUsageStats.fromLogFile(raw);
         } catch (IOException e) {
             return new AgentUsageStats();
         }
     }
 
-    /** Location of the persisted JSONL stream for this build. */
     public File getRawLogFile() {
-        return new File(run.getRootDir(), RAW_LOG_FILE);
+        int invocationId = resolveRequestedInvocationId();
+        return getRawLogFile(invocationId);
     }
 
-    /** Approves one pending tool call by approval id. */
+    public File getRawLogFile(int invocationId) {
+        if (run == null || invocationId <= 0) {
+            return run == null
+                    ? null
+                    : new File(run.getRootDir(), RAW_LOG_FILE_PREFIX + "latest" + RAW_LOG_FILE_SUFFIX);
+        }
+        return new File(
+                run.getRootDir(), RAW_LOG_FILE_PREFIX + invocationId + RAW_LOG_FILE_SUFFIX);
+    }
+
+    public synchronized boolean isInvocationLive(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation != null
+                && run != null
+                && run.isBuilding()
+                && invocation.exitCode == null
+                && invocation.id == getLatestInvocationId();
+    }
+
+    public synchronized Integer getInvocationExitCode(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation == null ? null : invocation.exitCode;
+    }
+
+    public synchronized boolean isLatestInvocation(int invocationId) {
+        InvocationRecord latest = latestInvocation();
+        return latest != null && latest.id == invocationId;
+    }
+
+    public synchronized String getInvocationModel(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        if (invocation == null) {
+            return "";
+        }
+        if (invocation.model != null && !invocation.model.isEmpty()) {
+            return invocation.model;
+        }
+        try {
+            String detected = AgentUsageStats.fromLogFile(getRawLogFile(invocationId)).getDetectedModel();
+            if (!detected.isEmpty()) {
+                return detected;
+            }
+        } catch (IOException ignored) {
+        }
+        return invocation.model;
+    }
+
+    public int getSelectedInvocationId() {
+        return resolveRequestedInvocationId();
+    }
+
     @RequirePOST
     public Object doApprove(@QueryParameter String id) {
         checkBuildPermission();
         if (id == null || id.trim().isEmpty()) {
             return HttpResponses.errorWithoutStack(400, "Missing approval id");
         }
-        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run);
+        int invocationId = resolveRequestedInvocationId();
+        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run, invocationId);
         if (liveExecution == null || !liveExecution.approve(id)) {
             return HttpResponses.errorWithoutStack(404, "Approval request not found");
         }
         return HttpResponses.redirectToDot();
     }
 
-    /** Denies one pending tool call by approval id. */
     @RequirePOST
     public Object doDeny(@QueryParameter String id, @QueryParameter String reason) {
         checkBuildPermission();
         if (id == null || id.trim().isEmpty()) {
             return HttpResponses.errorWithoutStack(400, "Missing approval id");
         }
-        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run);
+        int invocationId = resolveRequestedInvocationId();
+        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.get(run, invocationId);
         if (liveExecution == null || !liveExecution.deny(id, reason)) {
             return HttpResponses.errorWithoutStack(404, "Approval request not found");
         }
         return HttpResponses.redirectToDot();
     }
 
-    /** Progressive JSON endpoint consumed by the conversation UI for incremental event polling. */
     @GET
     public void doProgressiveEvents(
             org.kohsuke.stapler.StaplerRequest2 request,
@@ -240,11 +349,16 @@ public class AiAgentRunAction implements Action, RunAction2 {
             }
         }
 
-        File raw = getRawLogFile();
+        int invocationId = parseInvocationId(request.getParameter("invocation"));
+        if (invocationId <= 0) {
+            invocationId = getLatestInvocationId();
+        }
+
+        File raw = getRawLogFile(invocationId);
         List<AiAgentLogParser.EventView> newEvents = new ArrayList<>();
         long lineCount = 0;
 
-        if (raw.exists()) {
+        if (raw != null && raw.exists()) {
             try (BufferedReader reader =
                     Files.newBufferedReader(raw.toPath(), StandardCharsets.UTF_8)) {
                 String line;
@@ -273,17 +387,19 @@ public class AiAgentRunAction implements Action, RunAction2 {
             obj.put("toolInput", ev.getToolInput());
             obj.put("toolOutput", ev.getToolOutput());
             obj.put("summary", ev.getSummary());
+            obj.put("delta", ev.isDelta());
             eventsJson.add(obj);
         }
 
         JSONObject result = new JSONObject();
         result.put("events", eventsJson);
         result.put("nextStart", lineCount);
-        result.put("live", isLive());
-        result.put("exitCode", getExitCode());
+        result.put("live", isInvocationLive(invocationId));
+        result.put("exitCode", getInvocationExitCode(invocationId));
+        result.put("invocation", invocationId);
 
         JSONArray approvalsJson = new JSONArray();
-        for (ExecutionRegistry.PendingApproval pa : getPendingApprovals()) {
+        for (ExecutionRegistry.PendingApproval pa : getPendingApprovals(invocationId)) {
             JSONObject paObj = new JSONObject();
             paObj.put("id", pa.getId());
             paObj.put("toolName", pa.getToolName());
@@ -293,8 +409,8 @@ public class AiAgentRunAction implements Action, RunAction2 {
         }
         result.put("pendingApprovals", approvalsJson);
 
-        if (!isLive()) {
-            AgentUsageStats stats = getUsageStats();
+        if (!isInvocationLive(invocationId)) {
+            AgentUsageStats stats = getUsageStats(invocationId);
             if (stats.hasData()) {
                 JSONObject statsJson = new JSONObject();
                 statsJson.put("inputTokens", stats.getInputTokens());
@@ -315,18 +431,20 @@ public class AiAgentRunAction implements Action, RunAction2 {
         response.getWriter().write(result.toString());
     }
 
-    /** Redirects action root to the build page so the header action never resolves to 404. */
     @GET
     public Object doIndex() {
         checkReadPermission();
         return HttpResponses.redirectTo("../");
     }
 
-    /** Returns raw JSONL log content for rendering in the raw view. */
     public String getRawContent() {
+        return getRawContent(resolveRequestedInvocationId());
+    }
+
+    public String getRawContent(int invocationId) {
         checkReadPermission();
-        File raw = getRawLogFile();
-        if (!raw.exists()) {
+        File raw = getRawLogFile(invocationId);
+        if (raw == null || !raw.exists()) {
             return "No raw log file has been captured yet.";
         }
         try {
@@ -336,11 +454,115 @@ public class AiAgentRunAction implements Action, RunAction2 {
         }
     }
 
+    private synchronized InvocationRecord latestInvocation() {
+        return invocations.isEmpty() ? null : invocations.get(invocations.size() - 1);
+    }
+
+    private synchronized InvocationRecord getInvocation(int invocationId) {
+        for (InvocationRecord invocation : invocations) {
+            if (invocation.id == invocationId) {
+                return invocation;
+            }
+        }
+        return null;
+    }
+
+    private int resolveRequestedInvocationId() {
+        org.kohsuke.stapler.StaplerRequest2 request = Stapler.getCurrentRequest2();
+        if (request != null) {
+            int requested = parseInvocationId(request.getParameter("invocation"));
+            if (requested > 0) {
+                return requested;
+            }
+        }
+        return getLatestInvocationId();
+    }
+
+    private static int parseInvocationId(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
     private void checkReadPermission() {
         run.getParent().checkPermission(Item.READ);
     }
 
     private void checkBuildPermission() {
         run.getParent().checkPermission(Item.BUILD);
+    }
+
+    /** Serialized metadata for one invocation in a run. */
+    public static final class InvocationRecord implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final int id;
+        private final String agentType;
+        private final String model;
+        private final String commandLine;
+        private final boolean yoloMode;
+        private final boolean approvalsEnabled;
+        private final long startedAtMillis;
+
+        private long completedAtMillis;
+        private Integer exitCode;
+
+        InvocationRecord(
+                int id,
+                String agentType,
+                String model,
+                String commandLine,
+                boolean yoloMode,
+                boolean approvalsEnabled,
+                long startedAtMillis) {
+            this.id = id;
+            this.agentType = agentType;
+            this.model = model;
+            this.commandLine = commandLine;
+            this.yoloMode = yoloMode;
+            this.approvalsEnabled = approvalsEnabled;
+            this.startedAtMillis = startedAtMillis;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getAgentType() {
+            return agentType;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public String getCommandLine() {
+            return commandLine;
+        }
+
+        public boolean isYoloMode() {
+            return yoloMode;
+        }
+
+        public boolean isApprovalsEnabled() {
+            return approvalsEnabled;
+        }
+
+        public Integer getExitCode() {
+            return exitCode;
+        }
+
+        public String getStartedAt() {
+            return startedAtMillis <= 0L ? "" : new Date(startedAtMillis).toString();
+        }
+
+        public String getCompletedAt() {
+            return completedAtMillis <= 0L ? "" : new Date(completedAtMillis).toString();
+        }
     }
 }

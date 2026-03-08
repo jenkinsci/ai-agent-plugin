@@ -7,214 +7,231 @@
 
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
-  <div class="ai-conv"
-       id="ai-agent-root"
-       data-live="${it.live}"
-       data-base-url="${it.urlName}"
-       data-progressive-events-url="${it.urlName}/progressiveEvents"
-       data-approve-url="${it.urlName}/approve"
-       data-deny-url="${it.urlName}/deny"
-       data-raw-url="${it.urlName}/raw">
+  <div class="ai-conv">
     <h3 class="ai-conv-title">
       <l:icon src="terminal" class="ai-title-icon" />
       AI Agent Conversation
     </h3>
 
-    <div class="ai-conv-meta" id="ai-agent-meta">
-      <span class="ai-meta-badge"><strong>Agent:</strong> ${it.agentType}</span>
-      <j:if test="${it.model != ''}">
-        <span class="ai-meta-badge"><strong>Model:</strong> ${it.model}</span>
-      </j:if>
-      <j:if test="${it.yoloMode}">
-        <span class="ai-meta-badge ai-meta-badge-yolo">YOLO</span>
-      </j:if>
-      <j:if test="${it.approvalsEnabled}">
-        <span class="ai-meta-badge ai-meta-badge-approvals">Approvals</span>
-      </j:if>
-      <span id="ai-agent-exit-badge">
-        <j:if test="${it.exitCode != null}">
-          <j:choose>
-            <j:when test="${it.exitCode == 0}">
-              <span class="ai-meta-badge ai-meta-badge-exit-success">Exit: ${it.exitCode}</span>
-            </j:when>
-            <j:otherwise>
-              <span class="ai-meta-badge ai-meta-badge-exit-failure">Exit: ${it.exitCode}</span>
-            </j:otherwise>
-          </j:choose>
-        </j:if>
-      </span>
-    </div>
-
-    <j:if test="${it.live}">
-      <div id="ai-agent-live-banner">
-        <div class="ai-live">
-          <span class="spinner"></span>
-          Build is running - conversation streams automatically.
-        </div>
-      </div>
-      <div id="ai-agent-approvals-container"></div>
-      <div class="ai-conv-stream" id="ai-agent-events-container"></div>
-      <div id="ai-agent-empty" class="ai-conv-empty">Waiting for conversation events...</div>
+    <j:if test="${!it.hasInvocations()}">
+      <div class="ai-conv-empty">No AI agent invocations found for this build.</div>
     </j:if>
 
-    <j:if test="${!it.live}">
-      <j:set var="events" value="${it.events}" />
-      <j:choose>
-        <j:when test="${events.isEmpty()}">
-          <div class="ai-conv-empty">No conversation events captured.</div>
-        </j:when>
-        <j:otherwise>
-          <div class="ai-conv-stream">
-            <j:forEach var="ev" items="${events}" varStatus="loop">
-              <div class="ai-ev">
-                <j:if test="${ev.inlineContent}">
-                  <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
-                  <div class="ai-msg-content ai-md-src" data-md="${ev.content}"></div>
-                </j:if>
+    <j:forEach var="inv" items="${it.invocationsNewestFirst}">
+      <div class="ai-invocation-card">
+        <details class="ai-invocation-details">
+          <summary class="ai-invocation-summary">
+            <span class="ai-invocation-title">Invocation #${inv.id}</span>
+            <span class="ai-invocation-summary-meta">
+              <span class="ai-meta-badge"><strong>Agent:</strong> ${inv.agentType}</span>
+              <j:if test="${it.getInvocationModel(inv.id) != ''}">
+                <span class="ai-meta-badge"><strong>Model:</strong> ${it.getInvocationModel(inv.id)}</span>
+              </j:if>
+              <j:if test="${inv.yoloMode}">
+                <span class="ai-meta-badge ai-meta-badge-yolo">YOLO</span>
+              </j:if>
+              <j:if test="${inv.approvalsEnabled}">
+                <span class="ai-meta-badge ai-meta-badge-approvals">Approvals</span>
+              </j:if>
+              <j:if test="${inv.exitCode != null}">
+                <j:choose>
+                  <j:when test="${inv.exitCode == 0}">
+                    <span class="ai-meta-badge ai-meta-badge-exit-success">Exit: ${inv.exitCode}</span>
+                  </j:when>
+                  <j:otherwise>
+                    <span class="ai-meta-badge ai-meta-badge-exit-failure">Exit: ${inv.exitCode}</span>
+                  </j:otherwise>
+                </j:choose>
+              </j:if>
+            </span>
+          </summary>
 
-                <j:if test="${ev.category == 'tool_call'}">
-                  <details>
-                    <summary class="ai-tool-header ai-details-summary">
-                      <span class="ai-badge ai-badge-tool_call">TOOL</span>
-                      <span class="ai-tool-label">${ev.label}</span>
-                      <j:if test="${ev.toolInput != ''}">
-                        <span class="ai-tool-input-preview">${ev.toolInput}</span>
-                      </j:if>
-                    </summary>
-                    <div class="ai-tool-body">
-                      <j:if test="${ev.toolInput != ''}">
-                        <div class="ai-tool-section-label">Input</div>
-                        <div class="ai-tool-section-content">${ev.toolInput}</div>
-                      </j:if>
-                    </div>
-                  </details>
-                </j:if>
+          <div class="ai-conv"
+               data-ai-agent-root="true"
+               data-live="${it.isInvocationLive(inv.id)}"
+               data-progressive-events-url="${it.urlName}/progressiveEvents?invocation=${inv.id}"
+               data-approve-url="${it.urlName}/approve?invocation=${inv.id}"
+               data-deny-url="${it.urlName}/deny?invocation=${inv.id}"
+               data-raw-url="${it.urlName}/raw?invocation=${inv.id}">
 
-                <j:if test="${ev.category == 'tool_result'}">
-                  <details>
-                    <summary class="ai-tool-header ai-details-summary">
-                      <span class="ai-badge ai-badge-tool_result">OUTPUT</span>
-                      <span class="ai-tool-label">${ev.label}</span>
-                      <j:if test="${ev.toolOutput != ''}">
-                        <span class="ai-tool-input-preview ai-tool-output-preview">
-                          <j:choose>
-                            <j:when test="${ev.toolOutput.length() > 80}">
-                              ${ev.toolOutput.substring(0, 80)}...
-                            </j:when>
-                            <j:otherwise>${ev.toolOutput}</j:otherwise>
-                          </j:choose>
-                        </span>
-                      </j:if>
-                    </summary>
-                    <div class="ai-tool-body">
-                      <j:if test="${ev.toolOutput != ''}">
-                        <div class="ai-tool-section-label">Output</div>
-                        <div class="ai-tool-section-content">${ev.toolOutput}</div>
-                      </j:if>
-                    </div>
-                  </details>
-                </j:if>
+            <div class="ai-conv-meta">
+              <span class="ai-meta-badge"><strong>Started:</strong> ${inv.startedAt}</span>
+              <j:if test="${inv.completedAt != ''}">
+                <span class="ai-meta-badge"><strong>Completed:</strong> ${inv.completedAt}</span>
+              </j:if>
+              <span class="ai-meta-badge"><strong>Live:</strong> ${it.isInvocationLive(inv.id) ? 'yes' : 'no'}</span>
+              <span class="ai-agent-exit-badge"></span>
+            </div>
 
-                <j:if test="${ev.category == 'thinking'}">
-                  <details>
-                    <summary class="ai-details-summary">
-                      <span class="ai-badge ai-badge-thinking">Thinking</span>
-                    </summary>
-                    <div class="ai-thinking-text">${ev.content}</div>
-                  </details>
-                </j:if>
-
-                <j:if test="${ev.category == 'system' or ev.category == 'raw'}">
-                  <details>
-                    <summary class="ai-details-summary">
-                      <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
-                      <span class="ai-system-text">
-                        <j:choose>
-                          <j:when test="${ev.content.length() > 100}">
-                            ${ev.content.substring(0, 100)}...
-                          </j:when>
-                          <j:otherwise>${ev.content}</j:otherwise>
-                        </j:choose>
-                      </span>
-                    </summary>
-                    <div class="ai-system-text ai-system-detail">${ev.content}</div>
-                  </details>
-                </j:if>
+            <j:if test="${it.isInvocationLive(inv.id)}">
+              <div class="ai-agent-live-banner">
+                <div class="ai-live">
+                  <span class="spinner"></span>
+                  Build is running - conversation streams automatically.
+                </div>
               </div>
-            </j:forEach>
+              <div class="ai-agent-approvals-container"></div>
+              <div class="ai-conv-stream ai-agent-events-container"></div>
+              <div class="ai-agent-empty ai-conv-empty">Waiting for conversation events...</div>
+              <div class="ai-agent-stats-container"></div>
+            </j:if>
+
+            <j:if test="${!it.isInvocationLive(inv.id)}">
+              <j:set var="events" value="${it.getEvents(inv.id)}" />
+              <j:choose>
+                <j:when test="${events.isEmpty()}">
+                  <div class="ai-conv-empty">No conversation events captured.</div>
+                </j:when>
+                <j:otherwise>
+                  <div class="ai-conv-stream">
+                    <j:forEach var="ev" items="${events}">
+                      <div class="ai-ev">
+                        <j:if test="${ev.inlineContent}">
+                          <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
+                          <div class="ai-msg-content ai-md-src" data-md="${ev.content}"></div>
+                        </j:if>
+
+                        <j:if test="${ev.category == 'tool_call'}">
+                          <details>
+                            <summary class="ai-tool-header ai-details-summary">
+                              <span class="ai-badge ai-badge-tool_call">TOOL</span>
+                              <span class="ai-tool-label">${ev.label}</span>
+                              <j:if test="${ev.toolInput != ''}">
+                                <span class="ai-tool-input-preview">${ev.toolInput}</span>
+                              </j:if>
+                            </summary>
+                            <div class="ai-tool-body">
+                              <j:if test="${ev.toolInput != ''}">
+                                <div class="ai-tool-section-label">Input</div>
+                                <div class="ai-tool-section-content">${ev.toolInput}</div>
+                              </j:if>
+                            </div>
+                          </details>
+                        </j:if>
+
+                        <j:if test="${ev.category == 'tool_result'}">
+                          <details>
+                            <summary class="ai-tool-header ai-details-summary">
+                              <span class="ai-badge ai-badge-tool_result">OUTPUT</span>
+                              <span class="ai-tool-label">${ev.label}</span>
+                              <j:if test="${ev.toolOutput != ''}">
+                                <span class="ai-tool-input-preview ai-tool-output-preview">
+                                  <j:choose>
+                                    <j:when test="${ev.toolOutput.length() > 80}">
+                                      ${ev.toolOutput.substring(0, 80)}...
+                                    </j:when>
+                                    <j:otherwise>${ev.toolOutput}</j:otherwise>
+                                  </j:choose>
+                                </span>
+                              </j:if>
+                            </summary>
+                            <div class="ai-tool-body">
+                              <j:if test="${ev.toolOutput != ''}">
+                                <div class="ai-tool-section-label">Output</div>
+                                <div class="ai-tool-section-content">${ev.toolOutput}</div>
+                              </j:if>
+                            </div>
+                          </details>
+                        </j:if>
+
+                        <j:if test="${ev.category == 'thinking'}">
+                          <details>
+                            <summary class="ai-details-summary">
+                              <span class="ai-badge ai-badge-thinking">Thinking</span>
+                            </summary>
+                            <div class="ai-thinking-text">${ev.content}</div>
+                          </details>
+                        </j:if>
+
+                        <j:if test="${ev.category == 'system' or ev.category == 'raw'}">
+                          <details>
+                            <summary class="ai-details-summary">
+                              <span class="ai-badge ai-badge-${ev.category}">${ev.label}</span>
+                              <span class="ai-system-text">
+                                <j:choose>
+                                  <j:when test="${ev.content.length() > 100}">
+                                    ${ev.content.substring(0, 100)}...
+                                  </j:when>
+                                  <j:otherwise>${ev.content}</j:otherwise>
+                                </j:choose>
+                              </span>
+                            </summary>
+                            <div class="ai-system-text ai-system-detail">${ev.content}</div>
+                          </details>
+                        </j:if>
+                      </div>
+                    </j:forEach>
+                  </div>
+                </j:otherwise>
+              </j:choose>
+
+              <j:set var="stats" value="${it.getUsageStats(inv.id)}" />
+              <j:if test="${stats.hasData()}">
+                <div class="ai-stats">
+                  <j:if test="${stats.costDisplay != ''}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Cost:</span>
+                      <span class="ai-stats-value ai-stats-cost">${stats.costDisplay}</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.durationDisplay != ''}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Duration:</span>
+                      <span class="ai-stats-value ai-stats-duration">${stats.durationDisplay}</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.inputTokens > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Input:</span>
+                      <span class="ai-stats-value">${stats.inputTokensDisplay} tokens</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.outputTokens > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Output:</span>
+                      <span class="ai-stats-value">${stats.outputTokensDisplay} tokens</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.cacheReadTokens > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Cache Read:</span>
+                      <span class="ai-stats-value">${stats.cacheReadTokensDisplay} tokens</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.cacheWriteTokens > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Cache Write:</span>
+                      <span class="ai-stats-value">${stats.cacheWriteTokensDisplay} tokens</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.reasoningTokens > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Reasoning:</span>
+                      <span class="ai-stats-value">${stats.reasoningTokensDisplay} tokens</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.numTurns > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Turns:</span>
+                      <span class="ai-stats-value">${stats.numTurns}</span>
+                    </div>
+                  </j:if>
+                  <j:if test="${stats.toolCalls > 0}">
+                    <div class="ai-stats-item">
+                      <span class="ai-stats-label">Tool Calls:</span>
+                      <span class="ai-stats-value">${stats.toolCalls}</span>
+                    </div>
+                  </j:if>
+                </div>
+              </j:if>
+            </j:if>
+
+            <div class="ai-conv-links">
+              <a href="${it.urlName}/raw?invocation=${inv.id}">Raw stream-json log</a>
+            </div>
           </div>
-        </j:otherwise>
-      </j:choose>
-    </j:if>
-
-    <j:if test="${!it.live}">
-      <j:set var="stats" value="${it.usageStats}" />
-      <j:if test="${stats.hasData()}">
-        <div class="ai-stats">
-          <j:if test="${stats.costDisplay != ''}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Cost:</span>
-              <span class="ai-stats-value ai-stats-cost">${stats.costDisplay}</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.durationDisplay != ''}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Duration:</span>
-              <span class="ai-stats-value ai-stats-duration">${stats.durationDisplay}</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.inputTokens > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Input:</span>
-              <span class="ai-stats-value">${stats.inputTokensDisplay} tokens</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.outputTokens > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Output:</span>
-              <span class="ai-stats-value">${stats.outputTokensDisplay} tokens</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.cacheReadTokens > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Cache Read:</span>
-              <span class="ai-stats-value">${stats.cacheReadTokensDisplay} tokens</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.cacheWriteTokens > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Cache Write:</span>
-              <span class="ai-stats-value">${stats.cacheWriteTokensDisplay} tokens</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.reasoningTokens > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Reasoning:</span>
-              <span class="ai-stats-value">${stats.reasoningTokensDisplay} tokens</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.numTurns > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Turns:</span>
-              <span class="ai-stats-value">${stats.numTurns}</span>
-            </div>
-          </j:if>
-          <j:if test="${stats.toolCalls > 0}">
-            <div class="ai-stats-item">
-              <span class="ai-stats-label">Tool Calls:</span>
-              <span class="ai-stats-value">${stats.toolCalls}</span>
-            </div>
-          </j:if>
-        </div>
-      </j:if>
-    </j:if>
-
-    <j:if test="${it.live}">
-      <div id="ai-agent-stats-container"></div>
-    </j:if>
-
-    <div class="ai-conv-links">
-      <a href="${it.urlName}/raw">Raw stream-json log</a>
-    </div>
+        </details>
+      </div>
+    </j:forEach>
   </div>
 </j:jelly>

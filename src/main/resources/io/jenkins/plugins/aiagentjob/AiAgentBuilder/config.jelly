@@ -26,9 +26,11 @@
     <f:checkbox name="requireApprovals" checked="${instance.requireApprovals}" />
   </f:entry>
 
-  <f:entry title="Approval timeout (seconds)" field="approvalTimeoutSeconds">
-    <f:number name="approvalTimeoutSeconds" value="${instance.approvalTimeoutSeconds}" min="1" step="1" checkMethod="post" />
-  </f:entry>
+  <div data-ai-agent-approval-only="true">
+    <f:entry title="Approval timeout (seconds)" field="approvalTimeoutSeconds" description="Only used when manual approvals are enabled.">
+      <f:number name="approvalTimeoutSeconds" value="${instance.approvalTimeoutSeconds}" min="1" step="1" checkMethod="post" />
+    </f:entry>
+  </div>
 
   <f:entry title="API key credential" field="apiCredentialsId">
     <c:select field="apiCredentialsId" clazz="org.jenkinsci.plugins.plaincredentials.StringCredentials" />

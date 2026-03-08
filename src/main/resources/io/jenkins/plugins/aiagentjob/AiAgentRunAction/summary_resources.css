@@ -8,6 +8,40 @@
   font-size: 1.1em;
 }
 
+.ai-invocation-card {
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 8px;
+  background: var(--background, #fff);
+  margin-bottom: 12px;
+}
+
+.ai-invocation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.ai-invocation-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ai-invocation-title {
+  font-weight: 600;
+  color: var(--text-color, #1f2937);
+}
+
+.ai-invocation-summary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .ai-title-icon {
   vertical-align: middle;
   margin-right: 4px;
@@ -32,23 +66,27 @@
 }
 
 .ai-meta-badge-yolo {
-  background: var(--warning-color, #fff3e0);
-  color: var(--warning-text-color, #8a4b00);
+  background: #b45309;
+  border-color: #b45309;
+  color: #fff;
 }
 
 .ai-meta-badge-approvals {
-  background: var(--blue, #e3f2fd);
-  color: var(--link-color, #1565c0);
+  background: #4b5563;
+  border-color: #4b5563;
+  color: #fff;
 }
 
 .ai-meta-badge-exit-success {
-  background: var(--green, #e8f5e9);
-  color: var(--success-color, #2e7d32);
+  background: #1f7a3a;
+  border-color: #1f7a3a;
+  color: #fff;
 }
 
 .ai-meta-badge-exit-failure {
-  background: var(--red, #ffebee);
-  color: var(--error-color, #b71c1c);
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
 }
 
 .ai-conv-stream {
@@ -97,48 +135,48 @@
 }
 
 .ai-badge-assistant {
-  background: var(--green, #e8f5e9);
-  color: var(--success-color, #2e7d32);
+  background: #1f7a3a;
+  color: #fff;
 }
 
 .ai-badge-user {
-  background: var(--blue, #e3f2fd);
-  color: var(--link-color, #1565c0);
+  background: #4b5563;
+  color: #fff;
 }
 
 .ai-badge-result {
-  background: var(--green, #e8f5e9);
-  color: var(--success-color, #1b5e20);
+  background: #17663b;
+  color: #fff;
 }
 
 .ai-badge-error {
-  background: var(--red, #ffebee);
-  color: var(--error-color, #b71c1c);
+  background: #b42318;
+  color: #fff;
 }
 
 .ai-badge-thinking {
-  background: var(--warning-color, #fff3e0);
-  color: var(--warning-text-color, #8a4b00);
+  background: #b45309;
+  color: #fff;
 }
 
 .ai-badge-tool_call {
-  background: var(--blue, #e3f2fd);
-  color: var(--link-color, #1565c0);
+  background: #374151;
+  color: #fff;
 }
 
 .ai-badge-tool_result {
-  background: var(--accent-color, #e8eaf6);
-  color: var(--text-color, #283593);
+  background: #6b7280;
+  color: #fff;
 }
 
 .ai-badge-system {
-  background: var(--accent-color, #f3e5f5);
-  color: var(--text-color, #6a1b9a);
+  background: #6b7280;
+  color: #fff;
 }
 
 .ai-badge-raw {
-  background: var(--background, #eceff1);
-  color: var(--text-color-secondary, #546e7a);
+  background: #9ca3af;
+  color: #111827;
 }
 
 .ai-msg-content {
@@ -217,7 +255,7 @@
 }
 
 .ai-tool-output-preview {
-  color: var(--text-color, #283593);
+  color: var(--text-color, #374151);
 }
 
 .ai-tool-body {
@@ -265,8 +303,8 @@
 
 .ai-live {
   padding: 8px 12px;
-  background: var(--blue, #e3f2fd);
-  border: 1px solid var(--link-color, #90caf9);
+  background: var(--background, #f4f4f4);
+  border: 1px solid var(--border-color, #c7c7c7);
   border-radius: 6px;
   margin-bottom: 12px;
   font-size: 0.9em;
@@ -279,8 +317,8 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid var(--link-color, #90caf9);
-  border-top-color: var(--text-color, #1565c0);
+  border: 2px solid var(--border-color, #b6b6b6);
+  border-top-color: var(--text-color, #444);
   border-radius: 50%;
   animation: ai-spin 0.8s linear infinite;
 }
@@ -326,12 +364,12 @@
   flex-wrap: wrap;
   gap: 6px 14px;
   padding: 10px 14px;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
+  background: var(--background, #f5f5f5);
+  border: 1px solid var(--border-color, #e0e0e0);
   border-radius: 6px;
   margin-top: 10px;
   font-size: 0.82em;
-  color: #444;
+  color: var(--text-color, #444);
 }
 
 .ai-stats-item {
@@ -342,20 +380,20 @@
 
 .ai-stats-label {
   font-weight: 600;
-  color: #666;
+  color: var(--text-color-secondary, #666);
 }
 
 .ai-stats-value {
   font-family: monospace;
-  color: #222;
+  color: var(--text-color, #222);
 }
 
 .ai-stats-cost {
   font-weight: 700;
-  color: #1b5e20;
+  color: var(--text-color, #222);
 }
 
 .ai-stats-duration {
   font-weight: 600;
-  color: #1565c0;
+  color: var(--text-color-secondary, #4b5563);
 }

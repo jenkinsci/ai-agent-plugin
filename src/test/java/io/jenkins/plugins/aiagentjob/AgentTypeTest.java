@@ -41,6 +41,7 @@ public class AgentTypeTest {
         assertEquals("Cursor Agent", AgentType.CURSOR_AGENT.getDisplayName());
         assertEquals("OpenCode", AgentType.OPENCODE.getDisplayName());
         assertEquals("Gemini CLI", AgentType.GEMINI_CLI.getDisplayName());
+        assertEquals("Codex CLI", AgentType.CODEX.toString());
     }
 
     @Test

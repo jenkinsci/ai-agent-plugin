@@ -293,6 +293,10 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     @Extension
     @Symbol("aiAgent")
     public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+        public AgentType[] getAgentTypes() {
+            return AgentType.values();
+        }
+
         @Override
         public boolean isApplicable(Class<? extends AbstractProject> jobType) {
             return true;
@@ -322,8 +326,13 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
 
         @POST
         public FormValidation doCheckApprovalTimeoutSeconds(
-                @AncestorInPath Item item, @QueryParameter String value) {
+                @AncestorInPath Item item,
+                @QueryParameter String value,
+                @QueryParameter String requireApprovals) {
             checkConfigurationPermission(item);
+            if (!isTruthy(requireApprovals)) {
+                return FormValidation.ok();
+            }
             if (value == null || value.trim().isEmpty()) {
                 return FormValidation.error("Timeout is required.");
             }
@@ -340,6 +349,17 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
             } catch (NumberFormatException e) {
                 return FormValidation.error("Timeout must be a number.");
             }
+        }
+
+        private static boolean isTruthy(String raw) {
+            if (raw == null) {
+                return false;
+            }
+            String normalized = raw.trim().toLowerCase(java.util.Locale.ROOT);
+            return "true".equals(normalized)
+                    || "on".equals(normalized)
+                    || "yes".equals(normalized)
+                    || "1".equals(normalized);
         }
 
         private static void checkConfigurationPermission(Item item) {

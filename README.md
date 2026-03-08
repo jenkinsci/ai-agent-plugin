@@ -13,7 +13,7 @@ Plugin ID (artifactId): `ai-agent-job`
 
 - **Reusable build step** — add `Run AI Agent` to Freestyle jobs or Pipeline via `step([$class: 'AiAgentBuilder', ...])`.
 - **Multiple agent support** — Claude Code, Codex CLI, Cursor Agent, OpenCode, and Gemini CLI.
-- **Inline conversation view** — live-streaming conversation on the build page with structured display of assistant messages, tool calls with inputs/outputs, and thinking blocks.
+- **Inline conversation view** — live-streaming conversation on the build page with structured display of assistant messages, tool calls with inputs/outputs, and thinking blocks. Multiple invocations in the same build are shown as separate cards (latest expanded, older collapsible).
 - **Markdown rendering** — assistant and result messages are rendered as formatted HTML.
 - **Approval gates** — optionally pause builds for human review before tool execution.
 - **Usage statistics** — token counts, cost, and duration extracted from agent logs and displayed per build.
@@ -170,7 +170,7 @@ src/main/java/io/jenkins/plugins/aiagentjob/
 ├── AiAgentRunAction.java           # Per-build action: conversation UI, streaming, approvals
 ├── AiAgentLogParser.java           # JSONL log parser for all agent formats
 ├── AgentUsageStats.java            # Token/cost/duration stats normalization
-├── AgentType.java                  # Enum of supported agents with command templates
+├── AgentType.java                  # Enum of supported agents and default API-key env var names
 ├── AiAgentCommandFactory.java      # Command-line construction per agent
 ├── ExecutionRegistry.java          # In-memory registry for live execution state
 └── package-info.java               # Package-level API documentation

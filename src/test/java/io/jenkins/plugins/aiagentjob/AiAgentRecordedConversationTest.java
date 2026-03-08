@@ -165,7 +165,10 @@ public class AiAgentRecordedConversationTest {
         assertTrue("Should have assistant", cats.contains("assistant"));
         assertFalse("Empty Gemini tool results should stay hidden", cats.contains("tool_result"));
         assertFalse("Stats-only Gemini result should stay hidden", cats.contains("result"));
-        assertEquals("Current Gemini fixture should render 6 visible events", 6, events.size());
+        assertEquals("Current Gemini fixture should render 5 visible events", 5, events.size());
+        long assistantCount =
+                events.stream().filter(e -> "assistant".equals(e.getCategory())).count();
+        assertEquals("Gemini deltas should merge into one assistant event", 1, assistantCount);
     }
 
     @Test

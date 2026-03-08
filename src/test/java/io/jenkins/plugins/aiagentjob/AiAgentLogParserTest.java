@@ -205,7 +205,21 @@ public class AiAgentLogParserTest {
         assertTrue("Should have user prompt", cats.contains("user"));
         assertFalse("Empty Gemini tool results should stay hidden", cats.contains("tool_result"));
         assertFalse("Stats-only Gemini result event should stay hidden", cats.contains("result"));
-        assertEquals("Current Gemini fixture should keep 6 visible events", 6, events.size());
+        assertEquals("Current Gemini fixture should keep 5 visible events", 5, events.size());
+        long assistantCount =
+                events.stream().filter(e -> "assistant".equals(e.getCategory())).count();
+        assertEquals("Gemini deltas should merge into one assistant message", 1, assistantCount);
+        AiAgentLogParser.EventView assistant =
+                events.stream()
+                        .filter(e -> "assistant".equals(e.getCategory()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Missing assistant event"));
+        assertTrue(
+                "Merged assistant message should contain both delta fragments",
+                assistant.getContent().contains("Jenkins AI Agent Plugin"));
+        assertTrue(
+                "Merged assistant message should contain later delta fragments",
+                assistant.getContent().contains("approval gates"));
     }
 
     @Test
@@ -529,7 +543,15 @@ public class AiAgentLogParserTest {
     public void eventView_categoryLabelsAreReadable() {
         AiAgentLogParser.EventView view =
                 new AiAgentLogParser.EventView(
-                        1, "tool_call", "Bash", "", "ls -la", "", "{}", java.time.Instant.now());
+                        1,
+                        "tool_call",
+                        "Bash",
+                        "",
+                        "ls -la",
+                        "",
+                        "{}",
+                        java.time.Instant.now(),
+                        false);
         assertEquals("TOOL CALL", view.getCategoryLabel());
     }
 
@@ -544,12 +566,21 @@ public class AiAgentLogParserTest {
                         "",
                         "",
                         "{}",
-                        java.time.Instant.now());
+                        java.time.Instant.now(),
+                        false);
         assertTrue(error.isInlineContent());
 
         AiAgentLogParser.EventView toolCall =
                 new AiAgentLogParser.EventView(
-                        2, "tool_call", "Bash", "", "ls", "", "{}", java.time.Instant.now());
+                        2,
+                        "tool_call",
+                        "Bash",
+                        "",
+                        "ls",
+                        "",
+                        "{}",
+                        java.time.Instant.now(),
+                        false);
         assertTrue(toolCall.isToolEvent());
         assertFalse(toolCall.isInlineContent());
 
@@ -562,7 +593,8 @@ public class AiAgentLogParserTest {
                         "",
                         "",
                         "{}",
-                        java.time.Instant.now());
+                        java.time.Instant.now(),
+                        false);
         assertTrue(assistant.isInlineContent());
     }
 
@@ -603,7 +635,7 @@ public class AiAgentLogParserTest {
     @Test
     public void geminiConversation_hasCorrectEventCount() throws IOException {
         List<AiAgentLogParser.EventView> events = parseFixture("gemini-cli-conversation.jsonl");
-        assertEquals("Current Gemini fixture should produce 6 visible events", 6, events.size());
+        assertEquals("Current Gemini fixture should produce 5 visible events", 5, events.size());
     }
 
     @Test
@@ -625,7 +657,8 @@ public class AiAgentLogParserTest {
                         "",
                         "",
                         "{}",
-                        java.time.Instant.now());
+                        java.time.Instant.now(),
+                        false);
         String html = ev.getContentHtml();
         assertTrue("Should contain <strong>", html.contains("<strong>world</strong>"));
     }

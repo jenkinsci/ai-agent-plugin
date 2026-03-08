@@ -24,6 +24,7 @@ public class StaplerEndpointSecurityTest {
                         .getMethod(
                                 "doCheckApprovalTimeoutSeconds",
                                 hudson.model.Item.class,
+                                String.class,
                                 String.class)
                         .isAnnotationPresent(POST.class));
     }

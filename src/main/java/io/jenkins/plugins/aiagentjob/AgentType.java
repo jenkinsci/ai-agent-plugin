@@ -24,6 +24,11 @@ public enum AgentType {
         return displayName;
     }
 
+    @Override
+    public String toString() {
+        return displayName;
+    }
+
     /**
      * The environment variable name that this agent reads for API authentication by default (e.g.
      * ANTHROPIC_API_KEY for Claude Code).

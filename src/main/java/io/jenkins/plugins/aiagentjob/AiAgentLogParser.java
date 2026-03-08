@@ -37,6 +37,12 @@ final class AiAgentLogParser {
                 EventView ev = parseLine(idx, line).toEventView();
                 if (ev.isEmpty()) continue;
 
+                if (mergeAssistantDelta(events, ev)) {
+                    EventView merged = events.get(events.size() - 1);
+                    lastAssistantContent = merged.getContent();
+                    continue;
+                }
+
                 if ("assistant".equals(ev.getCategory()) && !ev.getContent().isEmpty()) {
                     lastAssistantContent = ev.getContent();
                 }
@@ -54,7 +60,8 @@ final class AiAgentLogParser {
                                     "",
                                     "",
                                     ev.getRawDetails(),
-                                    ev.getTimestamp());
+                                    ev.getTimestamp(),
+                                    false);
                 }
 
                 if (!ev.isEmpty()) {
@@ -63,6 +70,35 @@ final class AiAgentLogParser {
             }
         }
         return events;
+    }
+
+    private static boolean mergeAssistantDelta(List<EventView> events, EventView ev) {
+        if (!ev.isDelta() || !"assistant".equals(ev.getCategory()) || ev.getContent().isEmpty()) {
+            return false;
+        }
+        if (events.isEmpty()) {
+            return false;
+        }
+        EventView previous = events.get(events.size() - 1);
+        if (!"assistant".equals(previous.getCategory())) {
+            return false;
+        }
+
+        String mergedContent = previous.getContent() + ev.getContent();
+        String mergedRaw = previous.getRawDetails() + "\n" + ev.getRawDetails();
+        EventView merged =
+                new EventView(
+                        previous.getId(),
+                        previous.getCategory(),
+                        previous.getLabel(),
+                        mergedContent,
+                        previous.getToolInput(),
+                        previous.getToolOutput(),
+                        mergedRaw,
+                        ev.getTimestamp(),
+                        false);
+        events.set(events.size() - 1, merged);
+        return true;
     }
 
     static ParsedLine parseLine(long lineNumber, String line) {
@@ -466,6 +502,7 @@ final class AiAgentLogParser {
             JSONObject json,
             String rawDetails) {
         String text = extractText(json);
+        boolean delta = json.optBoolean("delta", false);
 
         if (typeLower.contains("thinking") || typeLower.contains("reasoning")) {
             return ParsedLine.thinking(lineNumber, text, rawDetails);
@@ -483,7 +520,8 @@ final class AiAgentLogParser {
         if (roleLower.equals("assistant")
                 || typeLower.contains("assistant")
                 || typeLower.contains("agent_message")) {
-            return ParsedLine.message(lineNumber, "assistant", "Assistant", text, rawDetails);
+            return ParsedLine.message(
+                    lineNumber, "assistant", "Assistant", text, rawDetails, delta);
         }
         if (roleLower.equals("user") || typeLower.contains("user")) {
             return ParsedLine.message(lineNumber, "user", "User", text, rawDetails);
@@ -785,6 +823,7 @@ final class AiAgentLogParser {
         private final String toolName;
         private final String rawDetails;
         private final String toolCallId;
+        private final boolean delta;
         private final Instant timestamp;
 
         private ParsedLine(
@@ -796,7 +835,8 @@ final class AiAgentLogParser {
                 String toolOutput,
                 String toolName,
                 String rawDetails,
-                String toolCallId) {
+                String toolCallId,
+                boolean delta) {
             this.id = id;
             this.category = category;
             this.label = label;
@@ -806,30 +846,44 @@ final class AiAgentLogParser {
             this.toolName = toolName;
             this.rawDetails = rawDetails;
             this.toolCallId = toolCallId;
+            this.delta = delta;
             this.timestamp = Instant.now();
         }
 
         static ParsedLine raw(long id, String line) {
-            return new ParsedLine(id, "raw", "", line, "", "", "", line, null);
+            return new ParsedLine(id, "raw", "", line, "", "", "", line, null, false);
         }
 
         static ParsedLine system(long id, String label, String content, String rawDetails) {
-            return new ParsedLine(id, "system", label, content, "", "", "", rawDetails, null);
+            return new ParsedLine(
+                    id, "system", label, content, "", "", "", rawDetails, null, false);
         }
 
         static ParsedLine message(
                 long id, String category, String label, String content, String rawDetails) {
-            return new ParsedLine(id, category, label, content, "", "", "", rawDetails, null);
+            return new ParsedLine(
+                    id, category, label, content, "", "", "", rawDetails, null, false);
+        }
+
+        static ParsedLine message(
+                long id,
+                String category,
+                String label,
+                String content,
+                String rawDetails,
+                boolean delta) {
+            return new ParsedLine(id, category, label, content, "", "", "", rawDetails, null, delta);
         }
 
         static ParsedLine result(
                 long id, String category, String label, String content, String rawDetails) {
-            return new ParsedLine(id, category, label, content, "", "", "", rawDetails, null);
+            return new ParsedLine(
+                    id, category, label, content, "", "", "", rawDetails, null, false);
         }
 
         static ParsedLine thinking(long id, String content, String rawDetails) {
             return new ParsedLine(
-                    id, "thinking", "Thinking", content, "", "", "", rawDetails, null);
+                    id, "thinking", "Thinking", content, "", "", "", rawDetails, null, false);
         }
 
         static ParsedLine toolCall(
@@ -844,7 +898,8 @@ final class AiAgentLogParser {
                     "",
                     toolName,
                     rawDetails,
-                    toolCallId);
+                    toolCallId,
+                    false);
         }
 
         static ParsedLine toolResult(
@@ -859,7 +914,8 @@ final class AiAgentLogParser {
                     toolOutput,
                     toolName,
                     rawDetails,
-                    toolCallId);
+                    toolCallId,
+                    false);
         }
 
         boolean isToolCall() {
@@ -890,7 +946,7 @@ final class AiAgentLogParser {
 
         EventView toEventView() {
             return new EventView(
-                    id, category, label, content, toolInput, toolOutput, rawDetails, timestamp);
+                    id, category, label, content, toolInput, toolOutput, rawDetails, timestamp, delta);
         }
     }
 
@@ -904,6 +960,7 @@ final class AiAgentLogParser {
         private final String toolOutput;
         private final String rawDetails;
         private final Instant timestamp;
+        private final boolean delta;
 
         EventView(
                 long id,
@@ -913,7 +970,8 @@ final class AiAgentLogParser {
                 String toolInput,
                 String toolOutput,
                 String rawDetails,
-                Instant timestamp) {
+                Instant timestamp,
+                boolean delta) {
             this.id = id;
             this.category = category;
             this.label = label;
@@ -922,6 +980,7 @@ final class AiAgentLogParser {
             this.toolOutput = toolOutput;
             this.rawDetails = rawDetails;
             this.timestamp = timestamp;
+            this.delta = delta;
         }
 
         public long getId() {
@@ -959,6 +1018,10 @@ final class AiAgentLogParser {
 
         public Instant getTimestamp() {
             return timestamp;
+        }
+
+        public boolean isDelta() {
+            return delta;
         }
 
         public String getCategoryLabel() {

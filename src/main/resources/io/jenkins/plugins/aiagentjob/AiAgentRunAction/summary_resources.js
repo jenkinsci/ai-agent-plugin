@@ -103,11 +103,12 @@
 
   function renderEvent(ev) {
     var cat = ev.category;
-    var html = '<div class="ai-ev">';
+    var html = '<div class="ai-ev" data-category="' + esc(cat) + '">';
 
     if (cat === 'assistant' || cat === 'user' || cat === 'result' || cat === 'error') {
       html += '<span class="ai-badge ai-badge-' + cat + '">' + esc(ev.label) + '</span>';
-      html += '<div class="ai-msg-content">' + mdToHtml(ev.content) + '</div>';
+      var contentClasses = 'ai-msg-content' + (cat === 'assistant' ? ' ai-msg-content-assistant' : '');
+      html += '<div class="' + contentClasses + '" data-md="' + esc(ev.content || '') + '">' + mdToHtml(ev.content) + '</div>';
     } else if (cat === 'tool_call') {
       html += '<details>';
       html += '<summary class="ai-tool-header ai-details-summary">';
@@ -157,6 +158,22 @@
 
     html += '</div>';
     return html;
+  }
+
+  function appendAssistantDelta(container, ev) {
+    if (!ev || !ev.delta || ev.category !== 'assistant') {
+      return false;
+    }
+    var assistantBodies = container.querySelectorAll('.ai-ev[data-category="assistant"] .ai-msg-content-assistant');
+    if (!assistantBodies || assistantBodies.length === 0) {
+      return false;
+    }
+    var last = assistantBodies[assistantBodies.length - 1];
+    var previousMd = last.getAttribute('data-md') || '';
+    var mergedMd = previousMd + (ev.content || '');
+    last.setAttribute('data-md', mergedMd);
+    last.innerHTML = mdToHtml(mergedMd);
+    return true;
   }
 
   function renderApprovals(container, approveUrl, denyUrl, approvals) {
@@ -236,16 +253,20 @@
     container.appendChild(badge);
   }
 
+  function withStart(url, start) {
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'start=' + start;
+  }
+
   function initLiveView(root) {
     var progressiveEventsUrl = root.dataset.progressiveEventsUrl;
     var approveUrl = root.dataset.approveUrl;
     var denyUrl = root.dataset.denyUrl;
-    var container = root.querySelector('#ai-agent-events-container');
-    var emptyMsg = root.querySelector('#ai-agent-empty');
-    var liveBanner = root.querySelector('#ai-agent-live-banner');
-    var approvalsContainer = root.querySelector('#ai-agent-approvals-container');
-    var exitBadge = root.querySelector('#ai-agent-exit-badge');
-    var statsContainer = root.querySelector('#ai-agent-stats-container');
+    var container = root.querySelector('.ai-agent-events-container');
+    var emptyMsg = root.querySelector('.ai-agent-empty');
+    var liveBanner = root.querySelector('.ai-agent-live-banner');
+    var approvalsContainer = root.querySelector('.ai-agent-approvals-container');
+    var exitBadge = root.querySelector('.ai-agent-exit-badge');
+    var statsContainer = root.querySelector('.ai-agent-stats-container');
     var nextStart = 0;
     var isLive = true;
     var eventCount = 0;
@@ -261,7 +282,7 @@
 
     function poll() {
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', progressiveEventsUrl + '?start=' + nextStart, true);
+      xhr.open('GET', withStart(progressiveEventsUrl, nextStart), true);
       xhr.onreadystatechange = function () {
         if (xhr.readyState !== 4) {
           return;
@@ -277,6 +298,9 @@
           if (events.length > 0) {
             var html = '';
             for (var i = 0; i < events.length; i++) {
+              if (appendAssistantDelta(container, events[i])) {
+                continue;
+              }
               html += renderEvent(events[i]);
               eventCount++;
             }
@@ -312,13 +336,20 @@
   }
 
   function init() {
-    var root = document.getElementById('ai-agent-root');
-    if (!root) {
-      return;
+    var roots = document.querySelectorAll('[data-ai-agent-root="true"]');
+    for (var i = 0; i < roots.length; i++) {
+      renderMarkdownNodes(roots[i]);
+      if (roots[i].dataset.live === 'true') {
+        initLiveView(roots[i]);
+      }
     }
-    renderMarkdownNodes(root);
-    if (root.dataset.live === 'true') {
-      initLiveView(root);
+
+    var details = document.querySelectorAll('.ai-invocation-details');
+    if (details.length > 0) {
+      details[0].open = true;
+      for (var j = 1; j < details.length; j++) {
+        details[j].open = false;
+      }
     }
   }
 

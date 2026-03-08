@@ -1,32 +1,67 @@
 (function () {
-    function updateCodexFields() {
-        var agentType = document.querySelector("select[name='agentType']");
-        if (!agentType) {
-            return;
-        }
+    function findFieldBySuffix(suffix) {
+        return document.querySelector(
+            "[name='" + suffix + "'], [name$='." + suffix + "'], [name$='" + suffix + "']"
+        );
+    }
 
-        var showCodexFields = agentType.value === "CODEX";
-        var codexOnly = document.querySelectorAll("[data-ai-agent-codex-only='true']");
-        for (var i = 0; i < codexOnly.length; i++) {
-            codexOnly[i].hidden = !showCodexFields;
+    function setSectionVisible(selector, visible) {
+        var sections = document.querySelectorAll(selector);
+        for (var i = 0; i < sections.length; i++) {
+            sections[i].hidden = !visible;
+            var fields = sections[i].querySelectorAll("input, select, textarea, button");
+            for (var j = 0; j < fields.length; j++) {
+                fields[j].disabled = !visible;
+            }
         }
     }
 
-    function bindCodexFieldToggle() {
-        var agentType = document.querySelector("select[name='agentType']");
-        if (!agentType || agentType.dataset.aiAgentCodexToggleBound === "true") {
-            updateCodexFields();
-            return;
+    function updateConditionalFields() {
+        var agentType = findFieldBySuffix("agentType");
+        if (agentType) {
+            setSectionVisible(
+                "[data-ai-agent-codex-only='true']",
+                agentType.value === "CODEX"
+            );
         }
 
-        agentType.dataset.aiAgentCodexToggleBound = "true";
-        agentType.addEventListener("change", updateCodexFields);
-        updateCodexFields();
+        var requireApprovals = findFieldBySuffix("requireApprovals");
+        if (requireApprovals) {
+            setSectionVisible(
+                "[data-ai-agent-approval-only='true']",
+                requireApprovals.checked
+            );
+        }
+    }
+
+    function bindField(fieldSuffix, eventName) {
+        var field = findFieldBySuffix(fieldSuffix);
+        if (!field) {
+            return false;
+        }
+        var boundKey = "aiAgentToggleBound" + fieldSuffix;
+        if (field.dataset[boundKey] === "true") {
+            return true;
+        }
+        field.dataset[boundKey] = "true";
+        field.addEventListener(eventName, updateConditionalFields);
+        return true;
+    }
+
+    function bindConditionalToggles() {
+        bindField("agentType", "change");
+        bindField("requireApprovals", "change");
+        updateConditionalFields();
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", bindCodexFieldToggle);
+        document.addEventListener("DOMContentLoaded", bindConditionalToggles);
     } else {
-        bindCodexFieldToggle();
+        bindConditionalToggles();
+    }
+
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(bindConditionalToggles);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 })();

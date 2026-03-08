@@ -154,17 +154,18 @@ final class AiAgentExecutor {
                 commandOverride.isEmpty()
                         ? AiAgentCommandFactory.commandAsString(agentCommand)
                         : commandOverride;
-        action.markStarted(
+        int invocationId =
+                action.markStarted(
                 config.getAgentType(),
                 model,
                 commandLine,
                 config.isYoloMode(),
                 config.isRequireApprovals());
 
-        File rawLogFile = action.getRawLogFile();
+        File rawLogFile = action.getRawLogFile(invocationId);
         Files.deleteIfExists(rawLogFile.toPath());
 
-        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.register(run);
+        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.register(run, invocationId);
         Duration approvalTimeout =
                 Duration.ofSeconds(Math.max(1, config.getApprovalTimeoutSeconds()));
 
@@ -193,7 +194,7 @@ final class AiAgentExecutor {
             exitCode = proc.join();
         } finally {
             outputHandler.close();
-            ExecutionRegistry.unregister(run);
+            ExecutionRegistry.unregister(run, invocationId);
             if (tempSetupScript != null) {
                 try {
                     tempSetupScript.delete();
@@ -219,7 +220,7 @@ final class AiAgentExecutor {
         if (outputHandler.wasDeniedByApproval()) {
             exitCode = 1;
         }
-        action.markCompleted(exitCode);
+        action.markCompleted(invocationId, exitCode);
         return exitCode;
     }
 

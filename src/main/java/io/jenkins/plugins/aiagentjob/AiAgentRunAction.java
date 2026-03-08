@@ -140,7 +140,8 @@ public class AiAgentRunAction implements Action, RunAction2 {
             return latest.model;
         }
         try {
-            String detected = AgentUsageStats.fromLogFile(getRawLogFile(latest.id)).getDetectedModel();
+            String detected =
+                    AgentUsageStats.fromLogFile(getRawLogFile(latest.id)).getDetectedModel();
             if (!detected.isEmpty()) {
                 return detected;
             }
@@ -259,10 +260,10 @@ public class AiAgentRunAction implements Action, RunAction2 {
         if (run == null || invocationId <= 0) {
             return run == null
                     ? null
-                    : new File(run.getRootDir(), RAW_LOG_FILE_PREFIX + "latest" + RAW_LOG_FILE_SUFFIX);
+                    : new File(
+                            run.getRootDir(), RAW_LOG_FILE_PREFIX + "latest" + RAW_LOG_FILE_SUFFIX);
         }
-        return new File(
-                run.getRootDir(), RAW_LOG_FILE_PREFIX + invocationId + RAW_LOG_FILE_SUFFIX);
+        return new File(run.getRootDir(), RAW_LOG_FILE_PREFIX + invocationId + RAW_LOG_FILE_SUFFIX);
     }
 
     public synchronized boolean isInvocationLive(int invocationId) {
@@ -293,7 +294,8 @@ public class AiAgentRunAction implements Action, RunAction2 {
             return invocation.model;
         }
         try {
-            String detected = AgentUsageStats.fromLogFile(getRawLogFile(invocationId)).getDetectedModel();
+            String detected =
+                    AgentUsageStats.fromLogFile(getRawLogFile(invocationId)).getDetectedModel();
             if (!detected.isEmpty()) {
                 return detected;
             }

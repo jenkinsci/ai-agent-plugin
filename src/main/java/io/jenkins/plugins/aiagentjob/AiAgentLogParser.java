@@ -872,7 +872,8 @@ final class AiAgentLogParser {
                 String content,
                 String rawDetails,
                 boolean delta) {
-            return new ParsedLine(id, category, label, content, "", "", "", rawDetails, null, delta);
+            return new ParsedLine(
+                    id, category, label, content, "", "", "", rawDetails, null, delta);
         }
 
         static ParsedLine result(
@@ -946,7 +947,15 @@ final class AiAgentLogParser {
 
         EventView toEventView() {
             return new EventView(
-                    id, category, label, content, toolInput, toolOutput, rawDetails, timestamp, delta);
+                    id,
+                    category,
+                    label,
+                    content,
+                    toolInput,
+                    toolOutput,
+                    rawDetails,
+                    timestamp,
+                    delta);
         }
     }
 

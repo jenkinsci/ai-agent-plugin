@@ -156,16 +156,17 @@ final class AiAgentExecutor {
                         : commandOverride;
         int invocationId =
                 action.markStarted(
-                config.getAgentType(),
-                model,
-                commandLine,
-                config.isYoloMode(),
-                config.isRequireApprovals());
+                        config.getAgentType(),
+                        model,
+                        commandLine,
+                        config.isYoloMode(),
+                        config.isRequireApprovals());
 
         File rawLogFile = action.getRawLogFile(invocationId);
         Files.deleteIfExists(rawLogFile.toPath());
 
-        ExecutionRegistry.LiveExecution liveExecution = ExecutionRegistry.register(run, invocationId);
+        ExecutionRegistry.LiveExecution liveExecution =
+                ExecutionRegistry.register(run, invocationId);
         Duration approvalTimeout =
                 Duration.ofSeconds(Math.max(1, config.getApprovalTimeoutSeconds()));
 

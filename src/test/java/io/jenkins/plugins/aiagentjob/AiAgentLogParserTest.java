@@ -572,15 +572,7 @@ public class AiAgentLogParserTest {
 
         AiAgentLogParser.EventView toolCall =
                 new AiAgentLogParser.EventView(
-                        2,
-                        "tool_call",
-                        "Bash",
-                        "",
-                        "ls",
-                        "",
-                        "{}",
-                        java.time.Instant.now(),
-                        false);
+                        2, "tool_call", "Bash", "", "ls", "", "{}", java.time.Instant.now(), false);
         assertTrue(toolCall.isToolEvent());
         assertFalse(toolCall.isInlineContent());
 

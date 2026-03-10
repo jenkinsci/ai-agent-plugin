@@ -24,14 +24,6 @@
                 agentType.value === "CODEX"
             );
         }
-
-        var requireApprovals = findFieldBySuffix("requireApprovals");
-        if (requireApprovals) {
-            setSectionVisible(
-                "[data-ai-agent-approval-only='true']",
-                requireApprovals.checked
-            );
-        }
     }
 
     function bindField(fieldSuffix, eventName) {
@@ -50,7 +42,6 @@
 
     function bindConditionalToggles() {
         bindField("agentType", "change");
-        bindField("requireApprovals", "change");
         updateConditionalFields();
     }
 

@@ -60,6 +60,30 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 3. Optionally add SCM, build triggers, post-build steps, and publishers as with any Jenkins job.
 4. Build the job. The conversation streams live on the build page.
 
+### Pipeline Syntax
+
+The step symbol is `aiAgent`.
+
+Built-in agent selection (backward-compatible enum style):
+
+```groovy
+aiAgent(
+  agentType: 'CODEX',
+  prompt: 'Summarize this project',
+  approvalTimeoutSeconds: 60
+)
+```
+
+Descriptor-based syntax (extensible, supports third-party agent plugins):
+
+```groovy
+aiAgent(
+  agent: [$class: 'CodexAgentHandler', customConfigEnabled: true, customConfigToml: '[model]\\nname = \"gpt-5\"'],
+  prompt: 'Summarize this project',
+  approvalTimeoutSeconds: 60
+)
+```
+
 ### Pinning a Node.js Version
 
 Some agents (Claude Code, Gemini CLI) are installed via `npx` and require Node.js on the build agent.

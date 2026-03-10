@@ -57,7 +57,7 @@ public class AiAgentCredentialInjectionTest {
                 newProject(
                         "credential-inject-test",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("test");
                             b.setApiCredentialsId("test-api-key");
                             // Command override that outputs the env var value as JSON so it appears
@@ -101,7 +101,7 @@ public class AiAgentCredentialInjectionTest {
                 newProject(
                         "custom-envvar-test",
                         b -> {
-                            b.setAgentType(AgentType.OPENCODE);
+                            b.setAgent(new OpenCodeAgentHandler());
                             b.setPrompt("test");
                             b.setApiCredentialsId("custom-key");
                             b.setApiKeyEnvVar("ANTHROPIC_API_KEY");
@@ -125,7 +125,7 @@ public class AiAgentCredentialInjectionTest {
                 newProject(
                         "missing-cred-test",
                         b -> {
-                            b.setAgentType(AgentType.GEMINI_CLI);
+                            b.setAgent(new GeminiCliAgentHandler());
                             b.setPrompt("test");
                             b.setApiCredentialsId("nonexistent-credential-id");
                             b.setCommandOverride("echo '{\"type\":\"system\"}'");
@@ -147,7 +147,7 @@ public class AiAgentCredentialInjectionTest {
                 newProject(
                         "no-cred-test",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("test");
                             // No credential configured
                             b.setCommandOverride("echo '{\"type\":\"system\"}'");
@@ -162,18 +162,18 @@ public class AiAgentCredentialInjectionTest {
     @Test
     public void effectiveApiKeyEnvVar_defaultsToAgentType() {
         AiAgentBuilder project = new AiAgentBuilder();
-        project.setAgentType(AgentType.CLAUDE_CODE);
+        project.setAgent(new ClaudeCodeAgentHandler());
         project.setApiKeyEnvVar("");
         assertEquals("ANTHROPIC_API_KEY", project.getEffectiveApiKeyEnvVar());
 
-        project.setAgentType(AgentType.GEMINI_CLI);
+        project.setAgent(new GeminiCliAgentHandler());
         assertEquals("GEMINI_API_KEY", project.getEffectiveApiKeyEnvVar());
     }
 
     @Test
     public void effectiveApiKeyEnvVar_respectsCustomOverride() {
         AiAgentBuilder project = new AiAgentBuilder();
-        project.setAgentType(AgentType.OPENCODE);
+        project.setAgent(new OpenCodeAgentHandler());
         project.setApiKeyEnvVar("ANTHROPIC_API_KEY");
         assertEquals("ANTHROPIC_API_KEY", project.getEffectiveApiKeyEnvVar());
     }

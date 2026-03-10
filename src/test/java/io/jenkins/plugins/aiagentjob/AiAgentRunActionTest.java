@@ -63,7 +63,7 @@ public class AiAgentRunActionTest {
                 newProject(
                         "test-props",
                         b -> {
-                            b.setAgentType(AgentType.GEMINI_CLI);
+                            b.setAgent(new GeminiCliAgentHandler());
                             b.setModel("gemini-2.5-pro");
                             b.setYoloMode(true);
                             b.setCommandOverride(

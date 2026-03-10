@@ -16,7 +16,7 @@ import java.util.List;
  */
 public abstract class AiAgentTypeHandler extends AbstractDescribableImpl<AiAgentTypeHandler>
         implements ExtensionPoint {
-    /** Stable ID used for migration and backwards-compatible pipeline usage. */
+    /** Stable identifier for this agent implementation. */
     public abstract String getId();
 
     public abstract String getDefaultApiKeyEnvVar();

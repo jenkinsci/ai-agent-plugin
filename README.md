@@ -64,16 +64,6 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 
 The step symbol is `aiAgent`.
 
-Built-in agent selection (backward-compatible enum style):
-
-```groovy
-aiAgent(
-  agentType: 'CODEX',
-  prompt: 'Summarize this project',
-  approvalTimeoutSeconds: 60
-)
-```
-
 Descriptor-based syntax (extensible, supports third-party agent plugins):
 
 ```groovy
@@ -200,7 +190,6 @@ src/main/java/io/jenkins/plugins/aiagentjob/
 ├── AgentUsageStats.java            # Token/cost/duration stats normalization
 ├── AiAgentCommandFactory.java      # Command-line construction per selected handler
 ├── AiAgentExecutionCustomization.java # Agent-specific env vars and cleanup hooks
-├── AgentType.java                  # Legacy enum kept for migration/compatibility
 ├── ExecutionRegistry.java          # In-memory registry for live execution state
 └── package-info.java               # Package-level API documentation
 ```

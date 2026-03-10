@@ -46,10 +46,10 @@ public class AiAgentRecordedConversationTest {
     }
 
     private FreeStyleProject buildProjectWithFixture(
-            String jobName, AgentType agentType, String fixtureName) throws Exception {
+            String jobName, AiAgentTypeHandler agent, String fixtureName) throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject(jobName);
         AiAgentBuilder builder = new AiAgentBuilder();
-        builder.setAgentType(agentType);
+        builder.setAgent(agent);
         builder.setPrompt("test prompt");
         builder.setCommandOverride(buildEchoScript(fixtureName));
         builder.setFailOnAgentError(true);
@@ -65,7 +65,7 @@ public class AiAgentRecordedConversationTest {
         FreeStyleProject project =
                 buildProjectWithFixture(
                         "claude-recording",
-                        AgentType.CLAUDE_CODE,
+                        new ClaudeCodeAgentHandler(),
                         "claude-code-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
@@ -94,7 +94,7 @@ public class AiAgentRecordedConversationTest {
 
         FreeStyleProject project =
                 buildProjectWithFixture(
-                        "codex-recording", AgentType.CODEX, "codex-conversation.jsonl");
+                        "codex-recording", new CodexAgentHandler(), "codex-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
@@ -121,7 +121,7 @@ public class AiAgentRecordedConversationTest {
         FreeStyleProject project =
                 buildProjectWithFixture(
                         "cursor-recording",
-                        AgentType.CURSOR_AGENT,
+                        new CursorAgentHandler(),
                         "cursor-agent-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
@@ -146,7 +146,9 @@ public class AiAgentRecordedConversationTest {
 
         FreeStyleProject project =
                 buildProjectWithFixture(
-                        "gemini-recording", AgentType.GEMINI_CLI, "gemini-cli-conversation.jsonl");
+                        "gemini-recording",
+                        new GeminiCliAgentHandler(),
+                        "gemini-cli-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
@@ -177,7 +179,9 @@ public class AiAgentRecordedConversationTest {
 
         FreeStyleProject project =
                 buildProjectWithFixture(
-                        "opencode-recording", AgentType.OPENCODE, "opencode-conversation.jsonl");
+                        "opencode-recording",
+                        new OpenCodeAgentHandler(),
+                        "opencode-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
@@ -203,7 +207,9 @@ public class AiAgentRecordedConversationTest {
 
         FreeStyleProject project =
                 buildProjectWithFixture(
-                        "error-recording", AgentType.CLAUDE_CODE, "error-conversation.jsonl");
+                        "error-recording",
+                        new ClaudeCodeAgentHandler(),
+                        "error-conversation.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
@@ -218,7 +224,7 @@ public class AiAgentRecordedConversationTest {
         FreeStyleProject project =
                 buildProjectWithFixture(
                         "streaming-recording",
-                        AgentType.CLAUDE_CODE,
+                        new ClaudeCodeAgentHandler(),
                         "claude-code-streaming.jsonl");
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
@@ -240,7 +246,9 @@ public class AiAgentRecordedConversationTest {
 
         FreeStyleProject project =
                 buildProjectWithFixture(
-                        "metadata-test", AgentType.CLAUDE_CODE, "claude-code-conversation.jsonl");
+                        "metadata-test",
+                        new ClaudeCodeAgentHandler(),
+                        "claude-code-conversation.jsonl");
         ((AiAgentBuilder) project.getBuildersList().get(0)).setModel("claude-opus-4");
         project.save();
 

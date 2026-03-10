@@ -6,22 +6,33 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class AiAgentCommandFactoryTest {
 
-    private static AiAgentBuilder createProject(AgentType type) {
+    private static AiAgentBuilder createProject(AiAgentTypeHandler handler) {
         AiAgentBuilder project = new AiAgentBuilder();
-        project.setAgentType(type);
+        project.setAgent(handler);
         return project;
+    }
+
+    private static List<AiAgentTypeHandler> allHandlers() {
+        List<AiAgentTypeHandler> handlers = new ArrayList<>();
+        handlers.add(new ClaudeCodeAgentHandler());
+        handlers.add(new CodexAgentHandler());
+        handlers.add(new CursorAgentHandler());
+        handlers.add(new OpenCodeAgentHandler());
+        handlers.add(new GeminiCliAgentHandler());
+        return handlers;
     }
 
     // ======================== Claude Code Command Tests ========================
 
     @Test
     public void claudeCode_basicCommand() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setPrompt("Hello world");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "Hello world");
@@ -40,7 +51,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void claudeCode_yoloMode() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test prompt");
@@ -55,7 +66,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void claudeCode_approvalsMode() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setRequireApprovals(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test prompt");
@@ -69,7 +80,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void claudeCode_withModel() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setModel("claude-opus-4");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -83,7 +94,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void codex_basicCommand() {
-        AiAgentBuilder project = createProject(AgentType.CODEX);
+        AiAgentBuilder project = createProject(new CodexAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "fix the bug");
 
@@ -98,7 +109,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void codex_yoloMode() {
-        AiAgentBuilder project = createProject(AgentType.CODEX);
+        AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -112,7 +123,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void codex_defaultMode() {
-        AiAgentBuilder project = createProject(AgentType.CODEX);
+        AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setYoloMode(false);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -127,7 +138,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void codex_withModel() {
-        AiAgentBuilder project = createProject(AgentType.CODEX);
+        AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setModel("o3");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -139,7 +150,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void codex_promptIsLastArgument() {
-        AiAgentBuilder project = createProject(AgentType.CODEX);
+        AiAgentBuilder project = createProject(new CodexAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "refactor this");
 
@@ -150,7 +161,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void cursorAgent_basicCommand() {
-        AiAgentBuilder project = createProject(AgentType.CURSOR_AGENT);
+        AiAgentBuilder project = createProject(new CursorAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "analyze code");
 
@@ -166,7 +177,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void cursorAgent_yoloMode() {
-        AiAgentBuilder project = createProject(AgentType.CURSOR_AGENT);
+        AiAgentBuilder project = createProject(new CursorAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -176,7 +187,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void cursorAgent_withModel() {
-        AiAgentBuilder project = createProject(AgentType.CURSOR_AGENT);
+        AiAgentBuilder project = createProject(new CursorAgentHandler());
         project.setModel("sonnet-4-thinking");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -190,7 +201,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void openCode_basicCommand() {
-        AiAgentBuilder project = createProject(AgentType.OPENCODE);
+        AiAgentBuilder project = createProject(new OpenCodeAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "explain this");
 
@@ -203,7 +214,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void openCode_withModel() {
-        AiAgentBuilder project = createProject(AgentType.OPENCODE);
+        AiAgentBuilder project = createProject(new OpenCodeAgentHandler());
         project.setModel("anthropic/claude-sonnet-4");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -217,7 +228,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void geminiCli_basicCommand() {
-        AiAgentBuilder project = createProject(AgentType.GEMINI_CLI);
+        AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "summarize project");
 
@@ -230,7 +241,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void geminiCli_yoloMode() {
-        AiAgentBuilder project = createProject(AgentType.GEMINI_CLI);
+        AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -240,7 +251,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void geminiCli_withApprovals() {
-        AiAgentBuilder project = createProject(AgentType.GEMINI_CLI);
+        AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setRequireApprovals(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -251,7 +262,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void geminiCli_withModel() {
-        AiAgentBuilder project = createProject(AgentType.GEMINI_CLI);
+        AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setModel("gemini-2.5-flash");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -265,7 +276,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void extraArgs_appendedToCommand() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setExtraArgs("--max-budget-usd 5 --effort high");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -278,7 +289,7 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void extraArgs_emptyDoesNotAddTokens() {
-        AiAgentBuilder project = createProject(AgentType.CLAUDE_CODE);
+        AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setExtraArgs("   ");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
@@ -357,25 +368,25 @@ public class AiAgentCommandFactoryTest {
 
     @Test
     public void allAgents_noModelByDefault() {
-        for (AgentType type : AgentType.values()) {
-            AiAgentBuilder project = createProject(type);
+        for (AiAgentTypeHandler handler : allHandlers()) {
+            AiAgentBuilder project = createProject(handler);
             List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
             assertFalse(
-                    "Agent " + type + " should not add --model when empty",
+                    "Agent " + handler.getId() + " should not add --model when empty",
                     cmd.contains("--model") || cmd.contains("-m"));
         }
     }
 
     @Test
     public void allAgents_havePromptInCommand() {
-        for (AgentType type : AgentType.values()) {
-            AiAgentBuilder project = createProject(type);
+        for (AiAgentTypeHandler handler : allHandlers()) {
+            AiAgentBuilder project = createProject(handler);
             List<String> cmd =
                     AiAgentCommandFactory.buildDefaultCommand(
-                            project, "unique-prompt-" + type.name());
+                            project, "unique-prompt-" + handler.getId());
             assertTrue(
-                    "Agent " + type + " should have prompt in command",
-                    cmd.contains("unique-prompt-" + type.name()));
+                    "Agent " + handler.getId() + " should have prompt in command",
+                    cmd.contains("unique-prompt-" + handler.getId()));
         }
     }
 }

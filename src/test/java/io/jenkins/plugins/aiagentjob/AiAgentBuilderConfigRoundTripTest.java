@@ -25,7 +25,7 @@ public class AiAgentBuilderConfigRoundTripTest {
     public void preservesConfiguredFields() throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject("ai-config-roundtrip");
         AiAgentBuilder builder = new AiAgentBuilder();
-        builder.setAgentType(AgentType.GEMINI_CLI);
+        builder.setAgent(new GeminiCliAgentHandler());
         builder.setPrompt("Summarize this repository.");
         builder.setModel("gemini-2.5-pro");
         builder.setWorkingDirectory("src");
@@ -43,7 +43,7 @@ public class AiAgentBuilderConfigRoundTripTest {
         jenkins.configRoundtrip(project);
 
         AiAgentBuilder reloaded = (AiAgentBuilder) project.getBuildersList().get(0);
-        assertEquals(AgentType.GEMINI_CLI, reloaded.getAgentType());
+        assertEquals("GEMINI_CLI", reloaded.getAgent().getId());
         assertEquals("Summarize this repository.", reloaded.getPrompt());
         assertEquals("gemini-2.5-pro", reloaded.getModel());
         assertEquals("src", reloaded.getWorkingDirectory());

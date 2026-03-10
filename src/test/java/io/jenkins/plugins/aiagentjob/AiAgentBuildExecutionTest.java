@@ -36,7 +36,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-success",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setCommandOverride(
                                     "echo '{\"type\":\"assistant\",\"message\":\"hello from test\"}'");
@@ -58,7 +58,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-setup-script",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setSetupScript("export SETUP_DONE=yes");
                             b.setCommandOverride(
@@ -85,7 +85,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-setup-fail",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setSetupScript("exit 42");
                             b.setCommandOverride(
@@ -107,7 +107,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-no-setup",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setSetupScript("");
                             b.setCommandOverride(
@@ -130,7 +130,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-setup-env",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setEnvironmentVariables("CUSTOM_VAR=secret_value_123");
                             b.setSetupScript("echo GOT_$CUSTOM_VAR");
@@ -152,7 +152,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-setup-export",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("hello");
                             b.setSetupScript("export MY_SETUP_VAR=from_setup_script");
                             b.setCommandOverride(
@@ -175,10 +175,11 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-codex-cfg",
                         b -> {
-                            b.setAgentType(AgentType.CODEX);
+                            CodexAgentHandler codex = new CodexAgentHandler();
+                            codex.setCustomConfigEnabled(true);
+                            codex.setCustomConfigToml("[mcp_servers.demo]\ncommand = \"npx\"");
+                            b.setAgent(codex);
                             b.setPrompt("hello");
-                            b.setCodexCustomConfigEnabled(true);
-                            b.setCodexCustomConfigToml("[mcp_servers.demo]\ncommand = \"npx\"");
                             b.setCommandOverride(
                                     "cfg=\"$USERPROFILE/.codex/config.toml\"; "
                                             + "if test -f \"$cfg\"; then echo CODEX_CONFIG_FOUND; sed -n '1,200p' \"$cfg\"; "
@@ -209,7 +210,7 @@ public class AiAgentBuildExecutionTest {
                 newProject(
                         "ai-build-approval-timeout",
                         b -> {
-                            b.setAgentType(AgentType.CLAUDE_CODE);
+                            b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("needs approval");
                             b.setRequireApprovals(true);
                             b.setApprovalTimeoutSeconds(1);

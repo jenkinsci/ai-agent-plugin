@@ -1,12 +1,12 @@
 (function () {
   function esc(text) {
-    var div = document.createElement('div');
+    const div = document.createElement('div');
     div.appendChild(document.createTextNode(text || ''));
     return div.innerHTML;
   }
 
   function inlineMd(text) {
-    var html = esc(text);
+    let html = esc(text);
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
@@ -19,13 +19,13 @@
     if (!text) {
       return '';
     }
-    var lines = text.split('\n');
-    var out = '';
-    var inCode = false;
-    var inList = false;
+    const lines = text.split('\n');
+    let out = '';
+    let inCode = false;
+    let inList = false;
 
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (line.indexOf('```') === 0) {
         if (inList) {
           out += '</ul>';
@@ -44,7 +44,7 @@
         out += esc(line) + '\n';
         continue;
       }
-      var trimmed = line.trim();
+      const trimmed = line.trim();
       if (trimmed.indexOf('- ') === 0 || trimmed.indexOf('* ') === 0) {
         if (!inList) {
           out += '<ul>';
@@ -85,8 +85,8 @@
   }
 
   function renderMarkdownNodes(root) {
-    var elems = root.querySelectorAll('.ai-md-src');
-    for (var i = 0; i < elems.length; i++) {
+    const elems = root.querySelectorAll('.ai-md-src');
+    for (let i = 0; i < elems.length; i++) {
       elems[i].innerHTML = mdToHtml(elems[i].getAttribute('data-md') || '');
     }
   }
@@ -102,12 +102,12 @@
   }
 
   function renderEvent(ev) {
-    var cat = ev.category;
-    var html = '<div class="ai-ev" data-category="' + esc(cat) + '">';
+    const cat = ev.category;
+    let html = '<div class="ai-ev" data-category="' + esc(cat) + '">';
 
     if (cat === 'assistant' || cat === 'user' || cat === 'result' || cat === 'error') {
       html += '<span class="ai-badge ai-badge-' + cat + '">' + esc(ev.label) + '</span>';
-      var contentClasses = 'ai-msg-content' + (cat === 'assistant' ? ' ai-msg-content-assistant' : '');
+      const contentClasses = 'ai-msg-content' + (cat === 'assistant' ? ' ai-msg-content-assistant' : '');
       html += '<div class="' + contentClasses + '" data-md="' + esc(ev.content || '') + '">' + mdToHtml(ev.content) + '</div>';
     } else if (cat === 'tool_call') {
       html += '<details>';
@@ -164,13 +164,13 @@
     if (!ev || !ev.delta || ev.category !== 'assistant') {
       return false;
     }
-    var assistantBodies = container.querySelectorAll('.ai-ev[data-category="assistant"] .ai-msg-content-assistant');
+    const assistantBodies = container.querySelectorAll('.ai-ev[data-category="assistant"] .ai-msg-content-assistant');
     if (!assistantBodies || assistantBodies.length === 0) {
       return false;
     }
-    var last = assistantBodies[assistantBodies.length - 1];
-    var previousMd = last.getAttribute('data-md') || '';
-    var mergedMd = previousMd + (ev.content || '');
+    const last = assistantBodies[assistantBodies.length - 1];
+    const previousMd = last.getAttribute('data-md') || '';
+    const mergedMd = previousMd + (ev.content || '');
     last.setAttribute('data-md', mergedMd);
     last.innerHTML = mdToHtml(mergedMd);
     return true;
@@ -184,9 +184,9 @@
       container.innerHTML = '';
       return;
     }
-    var html = '';
-    for (var i = 0; i < approvals.length; i++) {
-      var approval = approvals[i];
+    let html = '';
+    for (let i = 0; i < approvals.length; i++) {
+      const approval = approvals[i];
       html += '<div class="ai-approval-card">';
       html += '<strong>Approval required:</strong> ' + esc(approval.toolName);
       html += ' <span class="ai-approval-summary">- ' + esc(approval.inputSummary) + '</span>';
@@ -207,7 +207,7 @@
     if (!container || !stats) {
       return;
     }
-    var html = '<div class="ai-stats">';
+    let html = '<div class="ai-stats">';
     if (stats.costDisplay) {
       html += '<div class="ai-stats-item"><span class="ai-stats-label">Cost:</span><span class="ai-stats-value ai-stats-cost">' + esc(stats.costDisplay) + '</span></div>';
     }
@@ -247,7 +247,7 @@
     if (exitCode === null || exitCode === undefined) {
       return;
     }
-    var badge = document.createElement('span');
+    const badge = document.createElement('span');
     badge.className = 'ai-meta-badge ' + (exitCode === 0 ? 'ai-meta-badge-exit-success' : 'ai-meta-badge-exit-failure');
     badge.textContent = 'Exit: ' + exitCode;
     container.appendChild(badge);
@@ -258,19 +258,19 @@
   }
 
   function initLiveView(root) {
-    var progressiveEventsUrl = root.dataset.progressiveEventsUrl;
-    var approveUrl = root.dataset.approveUrl;
-    var denyUrl = root.dataset.denyUrl;
-    var container = root.querySelector('.ai-agent-events-container');
-    var emptyMsg = root.querySelector('.ai-agent-empty');
-    var liveBanner = root.querySelector('.ai-agent-live-banner');
-    var approvalsContainer = root.querySelector('.ai-agent-approvals-container');
-    var exitBadge = root.querySelector('.ai-agent-exit-badge');
-    var statsContainer = root.querySelector('.ai-agent-stats-container');
-    var nextStart = 0;
-    var isLive = true;
-    var eventCount = 0;
-    var pollInterval = 2000;
+    const progressiveEventsUrl = root.dataset.progressiveEventsUrl;
+    const approveUrl = root.dataset.approveUrl;
+    const denyUrl = root.dataset.denyUrl;
+    const container = root.querySelector('.ai-agent-events-container');
+    const emptyMsg = root.querySelector('.ai-agent-empty');
+    const liveBanner = root.querySelector('.ai-agent-live-banner');
+    const approvalsContainer = root.querySelector('.ai-agent-approvals-container');
+    const exitBadge = root.querySelector('.ai-agent-exit-badge');
+    const statsContainer = root.querySelector('.ai-agent-stats-container');
+    let nextStart = 0;
+    let isLive = true;
+    let eventCount = 0;
+    const pollInterval = 2000;
 
     function schedulePoll() {
       if (isLive) {
@@ -280,74 +280,71 @@
       }
     }
 
-    function poll() {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', withStart(progressiveEventsUrl, nextStart), true);
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState !== 4) {
+    async function poll() {
+      try {
+        const response = await fetch(withStart(progressiveEventsUrl, nextStart), {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) {
           return;
         }
-        if (xhr.status !== 200) {
-          schedulePoll();
-          return;
+        const data = await response.json();
+        const events = data.events || [];
+        const shouldScroll =
+          container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+        if (events.length > 0) {
+          let html = '';
+          for (let i = 0; i < events.length; i++) {
+            if (appendAssistantDelta(container, events[i])) {
+              continue;
+            }
+            html += renderEvent(events[i]);
+            eventCount++;
+          }
+          container.insertAdjacentHTML('beforeend', html);
+          if (shouldScroll) {
+            container.scrollTop = container.scrollHeight;
+          }
         }
-        try {
-          var data = JSON.parse(xhr.responseText);
-          var events = data.events || [];
-          var shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-          if (events.length > 0) {
-            var html = '';
-            for (var i = 0; i < events.length; i++) {
-              if (appendAssistantDelta(container, events[i])) {
-                continue;
-              }
-              html += renderEvent(events[i]);
-              eventCount++;
-            }
-            container.insertAdjacentHTML('beforeend', html);
-            if (shouldScroll) {
-              container.scrollTop = container.scrollHeight;
-            }
+        nextStart = data.nextStart || nextStart;
+        isLive = data.live;
+        if (emptyMsg) {
+          emptyMsg.hidden = eventCount > 0;
+          if (!isLive && eventCount === 0) {
+            emptyMsg.textContent = 'No conversation events captured.';
           }
-          nextStart = data.nextStart || nextStart;
-          isLive = data.live;
-          if (emptyMsg) {
-            emptyMsg.hidden = eventCount > 0;
-            if (!isLive && eventCount === 0) {
-              emptyMsg.textContent = 'No conversation events captured.';
-            }
-          }
-          if (liveBanner) {
-            liveBanner.hidden = !isLive;
-          }
-          renderApprovals(approvalsContainer, approveUrl, denyUrl, data.pendingApprovals);
-          updateExitBadge(exitBadge, data.exitCode);
-          if (data.usageStats) {
-            renderStats(statsContainer, data.usageStats);
-          }
-        } catch (ignored) {
         }
+        if (liveBanner) {
+          liveBanner.hidden = !isLive;
+        }
+        renderApprovals(approvalsContainer, approveUrl, denyUrl, data.pendingApprovals);
+        updateExitBadge(exitBadge, data.exitCode);
+        if (data.usageStats) {
+          renderStats(statsContainer, data.usageStats);
+        }
+      } catch (ignored) {
+      } finally {
         schedulePoll();
-      };
-      xhr.send();
+      }
     }
 
     poll();
   }
 
   function init() {
-    var roots = document.querySelectorAll('[data-ai-agent-root="true"]');
-    for (var i = 0; i < roots.length; i++) {
+    const roots = document.querySelectorAll('[data-ai-agent-root="true"]');
+    for (let i = 0; i < roots.length; i++) {
       renderMarkdownNodes(roots[i]);
       if (roots[i].dataset.live === 'true') {
         initLiveView(roots[i]);
       }
     }
 
-    var details = document.querySelectorAll('.ai-invocation-details');
+    const details = document.querySelectorAll('.ai-invocation-details');
     if (details.length > 0) {
       details[0].open = true;
-      for (var j = 1; j < details.length; j++) {
+      for (let j = 1; j < details.length; j++) {
         details[j].open = false;
       }
     }

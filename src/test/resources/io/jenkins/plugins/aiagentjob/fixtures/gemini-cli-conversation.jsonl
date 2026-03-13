@@ -4,6 +4,6 @@
 {"type":"tool_use","timestamp":"2026-03-07T03:24:42.438Z","tool_name":"read_file","tool_id":"read_file_1772853882438_1","parameters":{"file_path":"/Users/bruno.volpato/githubworkspace/jenkins-ai-agent-plugin/pom.xml"}}
 {"type":"tool_result","timestamp":"2026-03-07T03:24:42.534Z","tool_id":"read_file_1772853882351_0","status":"success","output":""}
 {"type":"tool_result","timestamp":"2026-03-07T03:24:42.534Z","tool_id":"read_file_1772853882438_1","status":"success","output":""}
-{"type":"message","timestamp":"2026-03-07T03:24:51.877Z","role":"assistant","content":"This project, **Jenkins AI Agent Plugin**, is a Jenkins plugin that introduces a native **AI Agent Job** type.","delta":true}
+{"type":"message","timestamp":"2026-03-07T03:24:51.877Z","role":"assistant","content":"This project, **Jenkins AI Agent Plugin**, is a Jenkins plugin that introduces a reusable **AI Agent** build step.","delta":true}
 {"type":"message","timestamp":"2026-03-07T03:24:53.737Z","role":"assistant","content":"It supports live conversation views, approval gates, and usage statistics for multiple coding agents.","delta":true}
 {"type":"result","timestamp":"2026-03-07T03:24:55.825Z","status":"success","stats":{"total_tokens":17401,"input_tokens":15940,"output_tokens":612,"cached":6143,"input":9797,"duration_ms":18483,"tool_calls":2}}

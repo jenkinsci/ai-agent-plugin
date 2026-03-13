@@ -39,6 +39,6 @@ jobs:
         if: matrix.java == 21
         uses: actions/upload-artifact@v4
         with:
-          name: ai-agent-job.hpi
-          path: target/ai-agent-job.hpi
+          name: ai-agent.hpi
+          path: target/ai-agent.hpi
           retention-days: 30

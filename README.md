@@ -1,4 +1,4 @@
-# AI Agent Job
+# AI Agent
 
 [![CI](https://github.com/bvolpato/jenkins-ai-agent-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/bvolpato/jenkins-ai-agent-plugin/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -7,7 +7,7 @@
 A Jenkins plugin that adds a reusable **Run AI Agent** build step for running autonomous coding
 agents (Claude Code, Codex CLI, Cursor Agent, OpenCode, Gemini CLI) in Jenkins jobs and pipelines.
 
-Plugin ID (artifactId): `ai-agent-job`
+Plugin ID (artifactId): `ai-agent`
 
 ## Features
 
@@ -162,7 +162,7 @@ Requires Java 17+ and Maven 3.9+.
 mvn clean verify
 ```
 
-The plugin artifact is generated at `target/ai-agent-job.hpi`.
+The plugin artifact is generated at `target/ai-agent.hpi`.
 
 To package without running tests:
 

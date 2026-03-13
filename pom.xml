@@ -10,13 +10,13 @@
   </parent>
 
   <groupId>io.jenkins.plugins</groupId>
-  <artifactId>ai-agent-job</artifactId>
-  <version>${revision}.${changelist}</version>
+  <artifactId>ai-agent</artifactId>
+  <version>${changelist}</version>
   <packaging>hpi</packaging>
 
-  <name>AI Agent Job</name>
+  <name>AI Agent</name>
   <description>Jenkins build step to execute AI coding agents with streaming JSON logs and interactive approvals.</description>
-  <url>https://github.com/jenkinsci/ai-agent-job-plugin</url>
+  <url>https://github.com/jenkinsci/ai-agent-plugin</url>
 
   <licenses>
     <license>
@@ -26,14 +26,13 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://github.com/jenkinsci/ai-agent-job-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:jenkinsci/ai-agent-job-plugin.git</developerConnection>
+    <connection>scm:git:https://github.com/jenkinsci/ai-agent-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:jenkinsci/ai-agent-plugin.git</developerConnection>
     <tag>${scmTag}</tag>
-    <url>https://github.com/jenkinsci/ai-agent-job-plugin</url>
+    <url>https://github.com/jenkinsci/ai-agent-plugin</url>
   </scm>
 
   <properties>
-    <revision>0.6.1</revision>
     <changelist>999999-SNAPSHOT</changelist>
     <jenkins.baseline>2.528</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>

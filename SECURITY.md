@@ -12,7 +12,7 @@ Please report vulnerabilities through the Jenkins security reporting process:
 - https://www.jenkins.io/security/reporting/
 
 If needed, include:
-- Plugin name: `ai-agent-job`
+- Plugin name: `ai-agent`
 - Affected version(s)
 - Reproduction steps or proof of concept
 - Impact assessment

@@ -278,7 +278,7 @@ public class AiAgentLogParserTest {
                         .filter(e -> "assistant".equals(e.getCategory()))
                         .findFirst()
                         .orElseThrow(() -> new AssertionError("Missing assistant event"));
-        assertTrue(assistant.getContent().contains("AI Agent Job"));
+        assertTrue(assistant.getContent().contains("AI Agent"));
     }
 
     // ======================== Error Handling Tests ========================

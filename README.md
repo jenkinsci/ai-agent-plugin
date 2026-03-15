@@ -62,9 +62,8 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 
 ### Pipeline Syntax
 
-The step symbol is `aiAgent`.
-
-Descriptor-based syntax (extensible, supports third-party agent plugins).
+The step symbol is `aiAgent`, and agent handlers are referenced by their symbols such as
+`claudeCode()`, `codex()`, `geminiCli()`, `cursor()`, and `openCode()`.
 
 Minimal invocation (uses default Claude Code handler):
 
@@ -78,7 +77,7 @@ Gemini with manual tool-call approvals:
 
 ```groovy
 aiAgent(
-  agent: [$class: 'GeminiCliAgentHandler'],
+  agent: geminiCli(),
   prompt: 'Refactor the parser and add tests',
   requireApprovals: true,
   approvalTimeoutSeconds: 300
@@ -89,7 +88,10 @@ Codex with job-scoped `config.toml`:
 
 ```groovy
 aiAgent(
-  agent: [$class: 'CodexAgentHandler', customConfigEnabled: true, customConfigToml: '[model]\\nname = \"gpt-5\"'],
+  agent: codex(
+    customConfigEnabled: true,
+    customConfigToml: '[model]\\nname = \"gpt-5\"'
+  ),
   prompt: 'Summarize this project',
   approvalTimeoutSeconds: 60
 )
@@ -112,12 +114,11 @@ The plugin injects these variables into every build:
 |----------|-------------|
 | `AI_AGENT_PROMPT` | The configured prompt text |
 | `AI_AGENT_MODEL` | The configured model name |
-| `AI_AGENT_JOB` | The Jenkins job name |
-| `AI_AGENT_BUILD_NUMBER` | The build number |
 
 ### Setup Script
 
-The **Setup script** field accepts shell commands that run before the agent process starts.
+The **Setup script** field accepts shell commands that run before the agent process starts on
+Unix agents.
 Use it to prepare the build environment — install dependencies, source dotfiles, configure PATH,
 or export secrets that the agent needs at runtime.
 
@@ -133,7 +134,13 @@ The setup script and agent command run in the **same shell session**, so any `ex
 variables, PATH changes, or sourced dotfiles are available to the agent. Supports shebang
 lines (e.g. `#!/bin/zsh`) just like the Jenkins Shell build step — if no shebang is present,
 `/bin/sh -xe` is used. If the script exits with a non-zero code the build fails immediately
-without launching the agent.
+without launching the agent. On Windows nodes, use **Command override** instead.
+
+### Command Override
+
+**Command override** runs a single shell command or shell snippet instead of the built-in
+agent command. Use this when you need full control over the launched process or want to invoke
+the agent from a custom path.
 
 ### Codex Job-Scoped config.toml
 

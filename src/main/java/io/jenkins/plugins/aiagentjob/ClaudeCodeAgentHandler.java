@@ -48,7 +48,7 @@ public final class ClaudeCodeAgentHandler extends AiAgentTypeHandler {
     }
 
     @Extension
-    @Symbol("claudeCodeAgent")
+    @Symbol("claudeCode")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {
         @Override
         public String getDisplayName() {

@@ -47,7 +47,7 @@ public final class GeminiCliAgentHandler extends AiAgentTypeHandler {
     }
 
     @Extension
-    @Symbol("geminiCliAgent")
+    @Symbol("geminiCli")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {
         @Override
         public String getDisplayName() {

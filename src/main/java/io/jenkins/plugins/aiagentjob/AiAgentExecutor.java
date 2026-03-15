@@ -9,7 +9,6 @@ import hudson.Launcher;
 import hudson.Proc;
 import hudson.Util;
 import hudson.console.LineTransformationOutputStream;
-import hudson.model.AbstractBuild;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 
@@ -41,29 +40,28 @@ final class AiAgentExecutor {
     static int execute(
             Run<?, ?> run,
             FilePath workspace,
+            EnvVars stepEnv,
             Launcher launcher,
             TaskListener listener,
             AiAgentConfiguration config,
             AiAgentRunAction action)
             throws IOException, InterruptedException {
-        EnvVars env = run.getEnvironment(listener);
-        if (run instanceof AbstractBuild<?, ?> abstractBuild) {
-            env.putAll(abstractBuild.getBuildVariables());
-        }
+        EnvVars env =
+                stepEnv != null ? new EnvVars(stepEnv) : new EnvVars(run.getEnvironment(listener));
 
         String prompt = Util.replaceMacro(Util.fixNull(config.getPrompt()), env);
         String model = Util.replaceMacro(Util.fixNull(config.getModel()), env);
         String workDirValue = Util.replaceMacro(Util.fixNull(config.getWorkingDirectory()), env);
-        String commandOverride = Util.replaceMacro(Util.fixNull(config.getCommandOverride()), env);
-        commandOverride = commandOverride.trim();
+        String commandOverride = Util.fixNull(config.getCommandOverride()).trim();
 
         FilePath runDirectory = resolveRunDirectory(workspace, workDirValue);
         runDirectory.mkdirs();
 
-        Map<String, String> extraEnv =
+        EnvVars procEnv = new EnvVars(env);
+        procEnv.putAll(
                 new LinkedHashMap<>(
                         AiAgentCommandFactory.parseEnvironmentVariables(
-                                config.getEnvironmentVariables()));
+                                config.getEnvironmentVariables())));
 
         // Inject API key from Jenkins Credentials if configured
         String credentialsId = Util.fixEmptyAndTrim(config.getApiCredentialsId());
@@ -76,7 +74,7 @@ final class AiAgentExecutor {
                             Collections.<DomainRequirement>emptyList());
             if (cred != null) {
                 String envVarName = config.getEffectiveApiKeyEnvVar();
-                extraEnv.put(envVarName, cred.getSecret().getPlainText());
+                procEnv.put(envVarName, cred.getSecret().getPlainText());
                 listener.getLogger()
                         .println(
                                 "[ai-agent] API key injected as "
@@ -93,15 +91,18 @@ final class AiAgentExecutor {
             }
         }
 
-        extraEnv.put("AI_AGENT_PROMPT", prompt);
-        extraEnv.put("AI_AGENT_MODEL", model);
-        extraEnv.put("AI_AGENT_JOB", run.getParent().getFullName());
-        extraEnv.put("AI_AGENT_BUILD_NUMBER", String.valueOf(run.getNumber()));
+        procEnv.put("AI_AGENT_PROMPT", prompt);
+        procEnv.put("AI_AGENT_MODEL", model);
 
-        String setupScript = Util.replaceMacro(Util.fixNull(config.getSetupScript()), env).trim();
+        String setupScript = Util.fixNull(config.getSetupScript()).trim();
+        if (!setupScript.isEmpty() && !launcher.isUnix()) {
+            throw new IOException(
+                    "Setup script is currently supported only on Unix agents. "
+                            + "Use Command override for Windows nodes.");
+        }
         AiAgentExecutionCustomization executionCustomization =
                 config.getAgent().prepareExecution(config, workspace, listener);
-        extraEnv.putAll(executionCustomization.getEnvironment());
+        procEnv.putAll(executionCustomization.getEnvironment());
 
         List<String> agentCommand;
         if (!commandOverride.isEmpty()) {
@@ -110,12 +111,19 @@ final class AiAgentExecutor {
             agentCommand = AiAgentCommandFactory.buildDefaultCommand(config, prompt);
         }
 
+        boolean needsShellEnvironmentBootstrap =
+                launcher.isUnix() && !executionCustomization.getEnvironment().isEmpty();
         List<String> command;
         FilePath tempSetupScript = null;
-        if (!setupScript.isEmpty() && launcher.isUnix()) {
-            String combinedScript = buildCombinedScript(setupScript, agentCommand, commandOverride);
+        if ((!setupScript.isEmpty() && launcher.isUnix()) || needsShellEnvironmentBootstrap) {
+            String combinedScript =
+                    buildCombinedScript(
+                            setupScript,
+                            executionCustomization.getEnvironment(),
+                            agentCommand,
+                            commandOverride);
             tempSetupScript = writeTempScript(workspace, combinedScript);
-            command = buildShellCommand(setupScript, tempSetupScript);
+            command = buildShellCommand(combinedScript, tempSetupScript);
         } else if (!commandOverride.isEmpty()) {
             if (launcher.isUnix()) {
                 // Use a non-login shell so injected HOME/USERPROFILE are not overridden.
@@ -138,6 +146,7 @@ final class AiAgentExecutor {
         int invocationId =
                 action.markStarted(
                         config.getAgent().getDescriptor().getDisplayName(),
+                        prompt,
                         model,
                         commandLine,
                         config.isYoloMode(),
@@ -167,7 +176,7 @@ final class AiAgentExecutor {
                     launcher.launch()
                             .cmds(command)
                             .pwd(runDirectory)
-                            .envs(extraEnv)
+                            .envs(procEnv)
                             .stdout(stdoutSink)
                             .stderr(stderrSink)
                             .quiet(true)
@@ -198,18 +207,21 @@ final class AiAgentExecutor {
     }
 
     /**
-     * Builds the combined script that sources the setup preamble and then execs the agent command
-     * in the same shell session, so exported variables flow through.
+     * Builds the combined script that runs setup/bootstrap preamble and then launches the final
+     * agent command in the same shell session, so exported variables flow through.
      */
     private static String buildCombinedScript(
-            String setupScript, List<String> agentCommand, String commandOverride) {
+            String setupScript,
+            Map<String, String> shellEnvironment,
+            List<String> agentCommand,
+            String commandOverride) {
         StringBuilder sb = new StringBuilder();
-        sb.append(setupScript);
-        if (!setupScript.endsWith("\n")) {
-            sb.append('\n');
-        }
+        appendShebangAwarePreamble(sb, setupScript, shellEnvironment);
         if (!commandOverride.isEmpty()) {
-            sb.append("exec ").append(commandOverride).append('\n');
+            sb.append(commandOverride);
+            if (!commandOverride.endsWith("\n")) {
+                sb.append('\n');
+            }
         } else {
             sb.append("exec");
             for (String token : agentCommand) {
@@ -220,16 +232,52 @@ final class AiAgentExecutor {
         return sb.toString();
     }
 
+    private static void appendShebangAwarePreamble(
+            StringBuilder sb, String setupScript, Map<String, String> shellEnvironment) {
+        String normalizedSetupScript = Util.fixNull(setupScript);
+        if (normalizedSetupScript.startsWith("#!")) {
+            int end = normalizedSetupScript.indexOf('\n');
+            if (end < 0) {
+                end = normalizedSetupScript.length();
+            }
+            sb.append(normalizedSetupScript, 0, end).append('\n');
+            appendShellExports(sb, shellEnvironment);
+            if (end < normalizedSetupScript.length()) {
+                sb.append(normalizedSetupScript.substring(end + 1));
+                if (!normalizedSetupScript.endsWith("\n")) {
+                    sb.append('\n');
+                }
+            }
+            return;
+        }
+        appendShellExports(sb, shellEnvironment);
+        sb.append(normalizedSetupScript);
+        if (!normalizedSetupScript.isEmpty() && !normalizedSetupScript.endsWith("\n")) {
+            sb.append('\n');
+        }
+    }
+
+    private static void appendShellExports(StringBuilder sb, Map<String, String> shellEnvironment) {
+        for (Map.Entry<String, String> entry : shellEnvironment.entrySet()) {
+            String key = entry.getKey();
+            if (key == null || key.isBlank()) {
+                continue;
+            }
+            sb.append("export ")
+                    .append(key)
+                    .append('=')
+                    .append(shellQuote(entry.getValue() == null ? "" : entry.getValue()))
+                    .append('\n');
+        }
+    }
+
     /**
-     * Writes the combined script to a temp file in the system temp directory so the AI agent never
-     * sees it in the project workspace.
+     * Writes the combined script to an agent-local temp area so the AI agent never sees it in the
+     * project workspace.
      */
     private static FilePath writeTempScript(FilePath workspace, String combinedScript)
             throws IOException, InterruptedException {
-        FilePath tempDir =
-                new FilePath(
-                        workspace.getChannel(),
-                        new File(System.getProperty("java.io.tmpdir")).getAbsolutePath());
+        FilePath tempDir = AiAgentTempFiles.tempRoot(workspace);
         FilePath tempScript = tempDir.createTextTempFile("ai-agent-setup", ".sh", combinedScript);
         tempScript.chmod(0755);
         return tempScript;

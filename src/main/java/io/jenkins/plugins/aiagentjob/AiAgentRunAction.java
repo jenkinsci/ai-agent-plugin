@@ -3,8 +3,10 @@ package io.jenkins.plugins.aiagentjob;
 import hudson.model.Action;
 import hudson.model.Item;
 import hudson.model.Run;
+import hudson.security.csrf.CrumbIssuer;
 import hudson.util.HttpResponses;
 
+import jenkins.model.Jenkins;
 import jenkins.model.RunAction2;
 
 import net.sf.json.JSONArray;
@@ -77,6 +79,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
 
     public synchronized int markStarted(
             String agentTypeDisplayName,
+            String prompt,
             String model,
             String commandLine,
             boolean yoloMode,
@@ -87,6 +90,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
                 new InvocationRecord(
                         id,
                         agentTypeDisplayName == null ? "" : agentTypeDisplayName,
+                        prompt == null ? "" : prompt,
                         model == null ? "" : model,
                         commandLine == null ? "" : commandLine,
                         yoloMode,
@@ -129,6 +133,11 @@ public class AiAgentRunAction implements Action, RunAction2 {
     public synchronized String getAgentType() {
         InvocationRecord latest = latestInvocation();
         return latest == null ? "" : latest.agentType;
+    }
+
+    public synchronized String getPrompt() {
+        InvocationRecord latest = latestInvocation();
+        return latest == null || latest.prompt == null ? "" : latest.prompt;
     }
 
     public synchronized String getModel() {
@@ -304,6 +313,47 @@ public class AiAgentRunAction implements Action, RunAction2 {
         return invocation.model;
     }
 
+    public synchronized String getInvocationPrompt(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation == null || invocation.prompt == null ? "" : invocation.prompt;
+    }
+
+    public synchronized String getInvocationAgentType(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation == null ? "" : invocation.agentType;
+    }
+
+    public synchronized String getInvocationCommandLine(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation == null ? "" : invocation.commandLine;
+    }
+
+    public synchronized String getInvocationStartedAt(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        if (invocation == null || invocation.startedAtMillis <= 0L) {
+            return "";
+        }
+        return new Date(invocation.startedAtMillis).toString();
+    }
+
+    public synchronized String getInvocationCompletedAt(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        if (invocation == null || invocation.completedAtMillis <= 0L) {
+            return "";
+        }
+        return new Date(invocation.completedAtMillis).toString();
+    }
+
+    public synchronized boolean getInvocationYoloMode(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation != null && invocation.yoloMode;
+    }
+
+    public synchronized boolean getInvocationApprovalsEnabled(int invocationId) {
+        InvocationRecord invocation = getInvocation(invocationId);
+        return invocation != null && invocation.approvalsEnabled;
+    }
+
     public int getSelectedInvocationId() {
         return resolveRequestedInvocationId();
     }
@@ -410,6 +460,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
             approvalsJson.add(paObj);
         }
         result.put("pendingApprovals", approvalsJson);
+        addCrumb(result, request);
 
         if (!isInvocationLive(invocationId)) {
             AgentUsageStats stats = getUsageStats(invocationId);
@@ -436,7 +487,17 @@ public class AiAgentRunAction implements Action, RunAction2 {
     @GET
     public Object doIndex() {
         checkReadPermission();
-        return HttpResponses.redirectTo("../");
+        int invocationId = getLatestInvocationId();
+        if (invocationId <= 0) {
+            return HttpResponses.redirectTo("../");
+        }
+        return HttpResponses.redirectTo("conversation?invocation=" + invocationId);
+    }
+
+    @GET
+    public Object doConversation() {
+        checkReadPermission();
+        return org.kohsuke.stapler.HttpResponses.forwardToView(this, "conversation.jelly");
     }
 
     public String getRawContent() {
@@ -491,6 +552,15 @@ public class AiAgentRunAction implements Action, RunAction2 {
         }
     }
 
+    private static void addCrumb(JSONObject result, org.kohsuke.stapler.StaplerRequest2 request) {
+        CrumbIssuer issuer = Jenkins.get().getCrumbIssuer();
+        if (issuer == null) {
+            return;
+        }
+        result.put("crumbRequestField", issuer.getCrumbRequestField());
+        result.put("crumb", issuer.getCrumb(request));
+    }
+
     private void checkReadPermission() {
         run.getParent().checkPermission(Item.READ);
     }
@@ -505,6 +575,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
 
         private final int id;
         private final String agentType;
+        private final String prompt;
         private final String model;
         private final String commandLine;
         private final boolean yoloMode;
@@ -517,6 +588,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
         InvocationRecord(
                 int id,
                 String agentType,
+                String prompt,
                 String model,
                 String commandLine,
                 boolean yoloMode,
@@ -524,6 +596,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
                 long startedAtMillis) {
             this.id = id;
             this.agentType = agentType;
+            this.prompt = prompt;
             this.model = model;
             this.commandLine = commandLine;
             this.yoloMode = yoloMode;
@@ -537,6 +610,10 @@ public class AiAgentRunAction implements Action, RunAction2 {
 
         public String getAgentType() {
             return agentType;
+        }
+
+        public String getPrompt() {
+            return prompt;
         }
 
         public String getModel() {

@@ -4,9 +4,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
+import hudson.model.StringParameterDefinition;
+import hudson.model.StringParameterValue;
+import hudson.slaves.DumbSlave;
+import hudson.slaves.WorkspaceList;
 
 import org.junit.Assume;
 import org.junit.Rule;
@@ -14,6 +21,7 @@ import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.io.File;
+import java.nio.file.Files;
 
 public class AiAgentBuildExecutionTest {
     @Rule public JenkinsRule jenkins = new JenkinsRule();
@@ -227,5 +235,110 @@ public class AiAgentBuildExecutionTest {
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
         assertNotNull(action);
         assertTrue(action.getEvents().stream().anyMatch(e -> "tool_call".equals(e.getCategory())));
+    }
+
+    @Test
+    public void commandOverride_receivesStepEnvironmentVariables() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        FreeStyleProject project =
+                newProject(
+                        "ai-build-step-env",
+                        b -> {
+                            b.setAgent(new ClaudeCodeAgentHandler());
+                            b.setPrompt("hello");
+                            b.setCommandOverride(
+                                    "echo \"{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":\\\"step=$SURROUNDING_VAR\\\"}\"");
+                            b.setFailOnAgentError(true);
+                        });
+        project.addProperty(
+                new ParametersDefinitionProperty(
+                        new StringParameterDefinition("SURROUNDING_VAR", "default")));
+
+        FreeStyleBuild build =
+                project.scheduleBuild2(
+                                0,
+                                new ParametersAction(
+                                        new StringParameterValue(
+                                                "SURROUNDING_VAR", "from-parameter")))
+                        .get();
+        jenkins.assertBuildStatusSuccess(build);
+
+        AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
+        assertNotNull(action);
+        String rawLog = Files.readString(action.getRawLogFile().toPath());
+        assertTrue(
+                "Command override should inherit step-scoped env vars",
+                rawLog.contains("step=from-parameter"));
+    }
+
+    @Test
+    public void setupScript_usesAgentLocalTempPathOnRemoteNode() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        DumbSlave agent = jenkins.createOnlineSlave();
+        FreeStyleProject project =
+                newProject(
+                        "ai-build-remote-setup-temp",
+                        b -> {
+                            b.setAgent(new ClaudeCodeAgentHandler());
+                            b.setPrompt("hello");
+                            b.setSetupScript("echo SETUP_SCRIPT_PATH=$0");
+                            b.setCommandOverride(
+                                    "echo '{\"type\":\"assistant\",\"message\":\"remote\"}'");
+                            b.setFailOnAgentError(true);
+                        });
+        project.setAssignedNode(agent);
+
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+        FilePath workspace = project.getSomeWorkspace();
+        assertNotNull(workspace);
+        FilePath tempRoot = WorkspaceList.tempDir(workspace);
+        assertNotNull(tempRoot);
+
+        String log = jenkins.getLog(build);
+        assertTrue(
+                "Setup script should run from the agent temp area",
+                log.contains("SETUP_SCRIPT_PATH=" + tempRoot.getRemote()));
+    }
+
+    @Test
+    public void codexCustomConfig_usesAgentLocalTempPathOnRemoteNode() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        DumbSlave agent = jenkins.createOnlineSlave();
+        FreeStyleProject project =
+                newProject(
+                        "ai-build-remote-codex-home",
+                        b -> {
+                            CodexAgentHandler codex = new CodexAgentHandler();
+                            codex.setCustomConfigEnabled(true);
+                            codex.setCustomConfigToml("[model]\nname = \"gpt-5\"");
+                            b.setAgent(codex);
+                            b.setPrompt("hello");
+                            b.setCommandOverride(
+                                    "cfg=\"$HOME/.codex/config.toml\"; "
+                                            + "echo \"{\\\"type\\\":\\\"assistant\\\",\\\"message\\\":\\\"cfg=$cfg home=$HOME\\\"}\"");
+                            b.setFailOnAgentError(true);
+                        });
+        project.setAssignedNode(agent);
+
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+        FilePath workspace = project.getSomeWorkspace();
+        assertNotNull(workspace);
+        FilePath tempRoot = WorkspaceList.tempDir(workspace);
+        assertNotNull(tempRoot);
+
+        AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
+        assertNotNull(action);
+        String rawLog = Files.readString(action.getRawLogFile().toPath());
+        String expectedHomePrefix =
+                "home=" + tempRoot.getRemote() + File.separator + "ai-agent-codex-home-";
+        assertTrue(
+                "Codex home should come from the agent temp area",
+                rawLog.contains(expectedHomePrefix));
+        assertTrue(
+                "Codex config path should resolve inside the run-scoped home",
+                rawLog.contains("/.codex/config.toml"));
     }
 }

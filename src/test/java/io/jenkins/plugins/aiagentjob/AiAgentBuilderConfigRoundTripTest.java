@@ -60,12 +60,23 @@ public class AiAgentBuilderConfigRoundTripTest {
     }
 
     @Test
+    public void commandOverride_normalizesWrappedLineBreaks() {
+        AiAgentBuilder builder = new AiAgentBuilder();
+        builder.setCommandOverride("/opt/opencode\n  --model gpt-5\n  --json");
+        assertEquals("/opt/opencode --model gpt-5 --json", builder.getCommandOverride());
+    }
+
+    @Test
     public void configJelly_usesDescriptorSelectorWithoutInlineScripts() throws Exception {
         String jelly = readResource("/io/jenkins/plugins/aiagentjob/AiAgentBuilder/config.jelly");
         assertTrue(
                 "config.jelly should use descriptor selector",
                 jelly.contains(
                         "<f:dropdownDescriptorSelector title=\"Agent Type\" field=\"agent\" descriptors=\"${descriptor.agentDescriptors}\" />"));
+        assertTrue("command override should use textbox", jelly.contains("<f:textbox />"));
+        assertFalse(
+                "command override should not use expandableTextbox",
+                jelly.contains("<f:expandableTextbox"));
         assertFalse("config.jelly should not contain inline style tags", jelly.contains("<style"));
         assertFalse(
                 "config.jelly should not contain inline script tags", jelly.contains("<script"));

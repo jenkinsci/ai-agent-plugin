@@ -701,6 +701,16 @@ public class AiAgentLogParserTest {
         assertTrue("Should contain <code>", html.contains("<code>echo hello</code>"));
     }
 
+    @Test
+    public void contentHtml_escapesHtmlInsideInlineCode() {
+        String md = "Run `<img src=x onerror=alert(1)>` now";
+        String html = AiAgentLogParser.EventView.markdownToHtml(md);
+        assertTrue(
+                "Inline code should remain escaped",
+                html.contains("<code>&lt;img src=x onerror=alert(1)&gt;</code>"));
+        assertFalse("Rendered markdown should not reintroduce raw HTML", html.contains("<img"));
+    }
+
     // ======================== Result deduplication ========================
 
     @Test

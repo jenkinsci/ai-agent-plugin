@@ -15,7 +15,7 @@
     return html;
   }
 
-  function mdToHtml(text) {
+  function mdToHtmlFallback(text) {
     if (!text) {
       return '';
     }
@@ -82,6 +82,19 @@
       out = out.substring(0, out.length - 5);
     }
     return out;
+  }
+
+  function mdToHtml(text) {
+    if (window.marked && typeof window.marked.parse === 'function') {
+      return window.marked.parse(esc(text || ''), {
+        async: false,
+        breaks: true,
+        gfm: true,
+        headerIds: false,
+        mangle: false
+      });
+    }
+    return mdToHtmlFallback(text);
   }
 
   function renderMarkdownNodes(root) {
@@ -176,7 +189,7 @@
     return true;
   }
 
-  function renderApprovals(container, approveUrl, denyUrl, approvals) {
+  function renderApprovals(container, approveUrl, denyUrl, approvals, crumbRequestField, crumbValue) {
     if (!container) {
       return;
     }
@@ -193,9 +206,15 @@
       html += '<div class="actions">';
       html += '<form method="post" action="' + esc(approveUrl) + '" class="ai-inline-form">';
       html += '<input type="hidden" name="id" value="' + esc(approval.id) + '" />';
+      if (crumbRequestField && crumbValue) {
+        html += '<input type="hidden" name="' + esc(crumbRequestField) + '" value="' + esc(crumbValue) + '" />';
+      }
       html += '<button type="submit">Approve</button></form>';
       html += '<form method="post" action="' + esc(denyUrl) + '" class="ai-inline-form">';
       html += '<input type="hidden" name="id" value="' + esc(approval.id) + '" />';
+      if (crumbRequestField && crumbValue) {
+        html += '<input type="hidden" name="' + esc(crumbRequestField) + '" value="' + esc(crumbValue) + '" />';
+      }
       html += '<input type="text" name="reason" placeholder="reason (optional)" class="ai-approval-reason" />';
       html += '<button type="submit">Deny</button></form>';
       html += '</div></div>';
@@ -270,6 +289,8 @@
     let nextStart = 0;
     let isLive = true;
     let eventCount = 0;
+    let crumbRequestField = '';
+    let crumbValue = '';
     const pollInterval = 2000;
 
     function schedulePoll() {
@@ -309,6 +330,10 @@
         }
         nextStart = data.nextStart || nextStart;
         isLive = data.live;
+        if (data.crumbRequestField && data.crumb) {
+          crumbRequestField = data.crumbRequestField;
+          crumbValue = data.crumb;
+        }
         if (emptyMsg) {
           emptyMsg.hidden = eventCount > 0;
           if (!isLive && eventCount === 0) {
@@ -318,7 +343,14 @@
         if (liveBanner) {
           liveBanner.hidden = !isLive;
         }
-        renderApprovals(approvalsContainer, approveUrl, denyUrl, data.pendingApprovals);
+        renderApprovals(
+          approvalsContainer,
+          approveUrl,
+          denyUrl,
+          data.pendingApprovals,
+          crumbRequestField,
+          crumbValue
+        );
         updateExitBadge(exitBadge, data.exitCode);
         if (data.usageStats) {
           renderStats(statsContainer, data.usageStats);

@@ -28,7 +28,7 @@
     <c:select />
   </f:entry>
 
-  <f:entry title="Setup script" field="setupScript">
+  <f:entry title="Setup script" field="setupScript" description="Runs before the agent command on Unix agents only. Use Command override for Windows nodes.">
     <f:textarea />
   </f:entry>
 
@@ -38,8 +38,8 @@
     </f:entry>
 
     <f:entry title="Command override" field="commandOverride">
-      <f:expandableTextbox />
-      <f:description>Optional full command to execute instead of built-in defaults. You can use AI_AGENT_PROMPT and AI_AGENT_MODEL env vars.</f:description>
+      <f:textbox />
+      <f:description>Optional single shell command or shell snippet to execute instead of built-in defaults. You can use AI_AGENT_PROMPT and AI_AGENT_MODEL env vars.</f:description>
     </f:entry>
 
     <f:entry title="Extra CLI args" field="extraArgs">

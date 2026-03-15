@@ -10,7 +10,6 @@ import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,10 +62,7 @@ public final class CodexAgentHandler extends AiAgentTypeHandler {
         if (!customConfigEnabled) {
             return customization;
         }
-        FilePath tempDir =
-                new FilePath(
-                        workspace.getChannel(),
-                        new File(System.getProperty("java.io.tmpdir")).getAbsolutePath());
+        FilePath tempDir = AiAgentTempFiles.tempRoot(workspace);
         FilePath homeDir = tempDir.child("ai-agent-codex-home-" + System.nanoTime());
         FilePath codexDir = homeDir.child(".codex");
         codexDir.mkdirs();
@@ -99,7 +95,7 @@ public final class CodexAgentHandler extends AiAgentTypeHandler {
     }
 
     @Extension
-    @Symbol("codexAgent")
+    @Symbol("codex")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {
         @Override
         public String getDisplayName() {

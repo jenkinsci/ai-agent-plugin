@@ -4,13 +4,12 @@ import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
 import hudson.model.Descriptor;
 import hudson.model.DescriptorVisibilityFilter;
 import hudson.model.Item;
@@ -18,7 +17,6 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -59,34 +57,33 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     public AiAgentBuilder() {}
 
     @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+    public void perform(
+            Run<?, ?> run,
+            FilePath workspace,
+            EnvVars env,
+            Launcher launcher,
+            TaskListener listener)
             throws InterruptedException, IOException {
-        FilePath workspace = build.getWorkspace();
+        executeForRun(run, workspace, env, launcher, listener);
+    }
+
+    private void executeForRun(
+            Run<?, ?> run,
+            FilePath workspace,
+            EnvVars env,
+            Launcher launcher,
+            TaskListener listener)
+            throws IOException, InterruptedException {
         if (workspace == null) {
             throw new IOException("Workspace is not available for this build.");
         }
-        return executeForRun(build, workspace, launcher, listener);
-    }
-
-    @Override
-    public void perform(Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-            throws InterruptedException, IOException {
-        executeForRun(run, workspace, launcher, listener);
-    }
-
-    private boolean executeForRun(
-            Run<?, ?> run, FilePath workspace, Launcher launcher, TaskListener listener)
-            throws IOException, InterruptedException {
         AiAgentConfiguration effective = this;
         AiAgentRunAction action = AiAgentRunAction.getOrCreate(run);
         int exitCode =
-                AiAgentExecutor.execute(run, workspace, launcher, listener, effective, action);
+                AiAgentExecutor.execute(run, workspace, env, launcher, listener, effective, action);
         if (exitCode != 0 && effective.isFailOnAgentError()) {
             listener.getLogger()
                     .println("[ai-agent] Agent finished with non-zero exit code: " + exitCode);
-            if (run instanceof AbstractBuild<?, ?>) {
-                return false;
-            }
             throw new IOException("AI agent finished with non-zero exit code: " + exitCode);
         }
         if (exitCode != 0) {
@@ -96,12 +93,6 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
                                     + exitCode
                                     + ", but failure is disabled.");
         }
-        return true;
-    }
-
-    @Override
-    public BuildStepMonitor getRequiredMonitorService() {
-        return BuildStepMonitor.NONE;
     }
 
     @Override
@@ -184,7 +175,7 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
 
     @DataBoundSetter
     public void setCommandOverride(String commandOverride) {
-        this.commandOverride = Util.fixNull(commandOverride);
+        this.commandOverride = normalizeCommandOverride(commandOverride);
     }
 
     @Override
@@ -259,7 +250,7 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
         model = Util.fixNull(model);
         prompt = Util.fixNull(prompt);
         workingDirectory = Util.fixNull(workingDirectory);
-        commandOverride = Util.fixNull(commandOverride);
+        commandOverride = normalizeCommandOverride(commandOverride);
         extraArgs = Util.fixNull(extraArgs);
         environmentVariables = Util.fixNull(environmentVariables);
         setupScript = Util.fixNull(setupScript);
@@ -267,6 +258,10 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
         apiEnvVarName = Util.fixNull(apiEnvVarName);
         approvalTimeoutSeconds = Math.max(1, approvalTimeoutSeconds);
         return this;
+    }
+
+    private static String normalizeCommandOverride(String commandOverride) {
+        return Util.fixNull(commandOverride).replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
     }
 
     @Extension

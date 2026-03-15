@@ -5,6 +5,7 @@
          xmlns:t="/lib/hudson"
          xmlns:f="/lib/form">
 
+  <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked" />
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <div class="ai-conv">
@@ -62,6 +63,15 @@
               <span class="ai-meta-badge"><strong>Live:</strong> ${it.isInvocationLive(inv.id) ? 'yes' : 'no'}</span>
               <span class="ai-agent-exit-badge"></span>
             </div>
+
+            <j:if test="${it.getInvocationPrompt(inv.id) != ''}">
+              <details class="ai-prompt-details">
+                <summary class="ai-details-summary">
+                  <span class="ai-meta-badge"><strong>Prompt</strong></span>
+                </summary>
+                <pre class="ai-prompt-pre">${it.getInvocationPrompt(inv.id)}</pre>
+              </details>
+            </j:if>
 
             <j:if test="${it.isInvocationLive(inv.id)}">
               <div class="ai-agent-live-banner">
@@ -227,6 +237,7 @@
             </j:if>
 
             <div class="ai-conv-links">
+              <a href="${it.urlName}/conversation?invocation=${inv.id}">Open full conversation</a>
               <a href="${it.urlName}/raw?invocation=${inv.id}">Raw stream-json log</a>
             </div>
           </div>

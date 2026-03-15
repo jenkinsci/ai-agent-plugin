@@ -8,10 +8,12 @@ import static org.junit.Assert.assertTrue;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.security.csrf.DefaultCrumbIssuer;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
+import org.htmlunit.html.HtmlPage;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
@@ -178,6 +180,8 @@ public class AiAgentRunActionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
 
         JenkinsRule.WebClient wc = jenkins.createWebClient();
+        wc.getOptions().setJavaScriptEnabled(false);
+        wc.getOptions().setCssEnabled(false);
         String url = build.getUrl() + "ai-agent/raw";
         org.htmlunit.Page page = wc.goTo(url);
         String content = page.getWebResponse().getContentAsString();
@@ -211,6 +215,10 @@ public class AiAgentRunActionTest {
         String jelly =
                 readResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary.jelly");
         assertTrue(
+                "summary.jelly should load marked for markdown rendering",
+                jelly.contains(
+                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked\""));
+        assertTrue(
                 "summary.jelly should load adjunct resources",
                 jelly.contains(
                         "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources\""));
@@ -236,6 +244,69 @@ public class AiAgentRunActionTest {
                 getClass()
                         .getResource(
                                 "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.js"));
+        assertNotNull(
+                "marked JS resource should exist",
+                getClass()
+                        .getResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/marked.js"));
+        assertNotNull(
+                "conversation jelly resource should exist",
+                getClass()
+                        .getResource(
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/conversation.jelly"));
+    }
+
+    @Test
+    public void progressiveEvents_returnsCrumbWhenIssuerConfigured() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        jenkins.jenkins.setCrumbIssuer(new DefaultCrumbIssuer(true));
+
+        FreeStyleProject project =
+                newProject(
+                        "test-progressive-crumb",
+                        b ->
+                                b.setCommandOverride(
+                                        "echo '{\"type\":\"assistant\",\"message\":\"ok\"}'"));
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+
+        JenkinsRule.WebClient wc = jenkins.createWebClient();
+        wc.getOptions().setThrowExceptionOnFailingStatusCode(false);
+
+        String url = build.getUrl() + "ai-agent/progressiveEvents?start=0";
+        String body = wc.goTo(url, "application/json").getWebResponse().getContentAsString();
+        JSONObject json = JSONObject.fromObject(body);
+
+        assertEquals(
+                "Crumb request field should be exposed to the live view",
+                jenkins.jenkins.getCrumbIssuer().getCrumbRequestField(),
+                json.getString("crumbRequestField"));
+        assertTrue("Crumb value should be included", json.containsKey("crumb"));
+        assertFalse("Crumb value should not be empty", json.getString("crumb").isEmpty());
+    }
+
+    @Test
+    public void conversationPage_showsPromptAndFullConversationLinkTarget() throws Exception {
+        Assume.assumeTrue(File.pathSeparatorChar == ':');
+
+        FreeStyleProject project =
+                newProject(
+                        "test-conversation-page",
+                        b -> {
+                            b.setPrompt("Explain this repository in detail");
+                            b.setCommandOverride(
+                                    "echo '{\"type\":\"assistant\",\"message\":\"hello\"}'");
+                        });
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+
+        JenkinsRule.WebClient wc = jenkins.createWebClient();
+        wc.getOptions().setJavaScriptEnabled(false);
+        wc.getOptions().setCssEnabled(false);
+        HtmlPage page = wc.goTo(build.getUrl() + "ai-agent/conversation?invocation=1");
+        String text = page.asNormalizedText();
+
+        assertTrue(text.contains("AI Agent Conversation #1"));
+        assertTrue(text.contains("Explain this repository in detail"));
+        assertTrue(text.contains("Raw stream-json log"));
     }
 
     private String buildEchoScript(String fixtureName) throws Exception {

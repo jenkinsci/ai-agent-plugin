@@ -59,7 +59,7 @@ public final class OpenCodeAgentHandler extends AiAgentTypeHandler {
     }
 
     @Extension
-    @Symbol("openCodeAgent")
+    @Symbol("openCode")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {
         @Override
         public String getDisplayName() {

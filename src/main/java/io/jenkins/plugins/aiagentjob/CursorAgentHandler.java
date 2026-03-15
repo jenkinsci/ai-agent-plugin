@@ -45,7 +45,7 @@ public final class CursorAgentHandler extends AiAgentTypeHandler {
     }
 
     @Extension
-    @Symbol("cursorAgent")
+    @Symbol("cursor")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {
         @Override
         public String getDisplayName() {

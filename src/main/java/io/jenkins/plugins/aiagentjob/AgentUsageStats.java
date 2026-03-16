@@ -15,6 +15,11 @@ import java.util.Locale;
  * Normalized token usage and cost statistics extracted from AI agent JSONL logs. Aggregates values
  * across all lines in the log (multiple turns, partial results, etc.) so the final object reflects
  * totals for the entire session.
+ *
+ * <p>Agent-specific extraction logic is delegated to {@link AiAgentStatsExtractor} implementations,
+ * which are provided by each {@link AiAgentTypeHandler} via {@link
+ * AiAgentTypeHandler#getStatsExtractor()}. Shared/common extraction (system init, result lines) is
+ * handled by the base class as a fallback.
  */
 public final class AgentUsageStats implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -135,11 +140,120 @@ public final class AgentUsageStats implements Serializable {
                 || durationMs > 0;
     }
 
+    // --- Mutators used by AiAgentStatsExtractor implementations ---
+
+    /** Accumulate input tokens (takes the max of current and new value). */
+    public void addInputTokens(long value) {
+        inputTokens = Math.max(inputTokens, value);
+    }
+
+    /** Accumulate output tokens (takes the max of current and new value). */
+    public void addOutputTokens(long value) {
+        outputTokens = Math.max(outputTokens, value);
+    }
+
+    /** Accumulate cache read tokens (takes the max of current and new value). */
+    public void addCacheReadTokens(long value) {
+        cacheReadTokens = Math.max(cacheReadTokens, value);
+    }
+
+    /** Accumulate cache write tokens (takes the max of current and new value). */
+    public void addCacheWriteTokens(long value) {
+        cacheWriteTokens = Math.max(cacheWriteTokens, value);
+    }
+
+    /** Accumulate total tokens (takes the max of current and new value). */
+    public void addTotalTokens(long value) {
+        totalTokens = Math.max(totalTokens, value);
+    }
+
+    /** Accumulate reasoning tokens (takes the max of current and new value). */
+    public void addReasoningTokens(long value) {
+        reasoningTokens = Math.max(reasoningTokens, value);
+    }
+
+    /** Increment input tokens (additive, for multi-step agents like OpenCode). */
+    public void incrementInputTokens(long value) {
+        inputTokens += value;
+    }
+
+    /** Increment output tokens (additive). */
+    public void incrementOutputTokens(long value) {
+        outputTokens += value;
+    }
+
+    /** Increment reasoning tokens (additive). */
+    public void incrementReasoningTokens(long value) {
+        reasoningTokens += value;
+    }
+
+    /** Increment total tokens (additive). */
+    public void incrementTotalTokens(long value) {
+        totalTokens += value;
+    }
+
+    /** Increment cache read tokens (additive). */
+    public void incrementCacheReadTokens(long value) {
+        cacheReadTokens += value;
+    }
+
+    /** Increment cache write tokens (additive). */
+    public void incrementCacheWriteTokens(long value) {
+        cacheWriteTokens += value;
+    }
+
+    /** Increment cost (additive). */
+    public void incrementCostUsd(double value) {
+        costUsd += value;
+    }
+
+    /** Set cost (takes the max of current and new value). */
+    public void addCostUsd(double value) {
+        costUsd = Math.max(costUsd, value);
+    }
+
+    /** Set duration (takes the max of current and new value). */
+    public void addDurationMs(long value) {
+        durationMs = Math.max(durationMs, value);
+    }
+
+    /** Set API duration (takes the max of current and new value). */
+    public void addApiDurationMs(long value) {
+        apiDurationMs = Math.max(apiDurationMs, value);
+    }
+
+    /** Set number of turns (takes the max of current and new value). */
+    public void addNumTurns(int value) {
+        numTurns = Math.max(numTurns, value);
+    }
+
+    /** Set tool call count (takes the max of current and new value). */
+    public void addToolCalls(int value) {
+        toolCalls = Math.max(toolCalls, value);
+    }
+
+    /** Set the detected model name if not already set. */
+    public void setDetectedModelIfEmpty(String model) {
+        if (model != null && !model.isEmpty() && detectedModel.isEmpty()) {
+            detectedModel = model;
+        }
+    }
+
     /**
      * Parses the entire JSONL log file and returns aggregated stats. Each line that contains usage
      * or stats information contributes to the totals.
      */
     public static AgentUsageStats fromLogFile(File logFile) throws IOException {
+        return fromLogFile(logFile, null);
+    }
+
+    /**
+     * Parses the entire JSONL log file using the given extractor and returns aggregated stats. The
+     * extractor is tried first for each line; if it returns {@code false}, the shared extractor
+     * handles the line.
+     */
+    public static AgentUsageStats fromLogFile(File logFile, AiAgentStatsExtractor extractor)
+            throws IOException {
         AgentUsageStats stats = new AgentUsageStats();
         if (logFile == null || !logFile.exists()) return stats;
 
@@ -151,7 +265,7 @@ public final class AgentUsageStats implements Serializable {
                 if (!line.startsWith("{") || !line.endsWith("}")) continue;
                 try {
                     JSONObject json = JSONObject.fromObject(line);
-                    stats.extractFrom(json);
+                    stats.extractFrom(json, extractor);
                 } catch (RuntimeException ignored) {
                 }
             }
@@ -159,19 +273,48 @@ public final class AgentUsageStats implements Serializable {
         return stats;
     }
 
-    /** Extracts stats from a single JSON line. Called for every line in the log. */
-    void extractFrom(JSONObject json) {
+    /** Extracts stats using the given extractor (if any), falling back to shared extraction. */
+    public void extractFrom(JSONObject json, AiAgentStatsExtractor extractor) {
+        // Always extract shared fields (model detection, common result structure)
+        extractShared(json);
+
+        // Try agent-specific extractor first
+        if (extractor != null && extractor.extract(json, this)) {
+            return;
+        }
+
+        // Fall back to shared extraction for common patterns
+        extractSharedStats(json);
+    }
+
+    /** Extracts stats from a single JSON line without any agent-specific extractor. */
+    public void extractFrom(JSONObject json) {
+        extractFrom(json, null);
+    }
+
+    /**
+     * Shared extraction: model detection from system/init events and result cost/duration. Always
+     * runs regardless of whether the agent-specific extractor handled the line.
+     */
+    private void extractShared(JSONObject json) {
         String type = json.optString("type", "").toLowerCase(Locale.ROOT);
 
         if ("system".equals(type) || "init".equals(type)) {
             String model = json.optString("model", "").trim();
-            if (!model.isEmpty() && detectedModel.isEmpty()) {
-                detectedModel = model;
-            }
+            setDetectedModelIfEmpty(model);
         }
+    }
+
+    /**
+     * Shared stats extraction for common patterns: result events with usage, assistant message
+     * usage blocks, and common usage structures. Acts as a fallback when no agent-specific
+     * extractor is provided or when the extractor doesn't handle the line.
+     */
+    private void extractSharedStats(JSONObject json) {
+        String type = json.optString("type", "").toLowerCase(Locale.ROOT);
 
         if ("result".equals(type)) {
-            extractClaudeResult(json);
+            extractResultStats(json);
         }
 
         if ("assistant".equals(type)) {
@@ -183,25 +326,10 @@ public final class AgentUsageStats implements Serializable {
                 }
             }
         }
-
-        // Codex: "turn.completed"
-        if ("turn.completed".equals(type)) {
-            JSONObject usage = json.optJSONObject("usage");
-            if (usage != null) {
-                accumulateUsage(usage);
-            }
-        }
-
-        // OpenCode: "step_finish"
-        if ("step_finish".equals(type)) {
-            JSONObject part = json.optJSONObject("part");
-            if (part != null) {
-                extractOpenCodePart(part);
-            }
-        }
     }
 
-    private void extractClaudeResult(JSONObject json) {
+    /** Extracts stats from a "result" event (Claude Code / Gemini / Cursor shared structure). */
+    public void extractResultStats(JSONObject json) {
         costUsd = Math.max(costUsd, json.optDouble("total_cost_usd", 0));
         durationMs = Math.max(durationMs, json.optLong("duration_ms", 0));
         apiDurationMs = Math.max(apiDurationMs, json.optLong("duration_api_ms", 0));
@@ -213,13 +341,14 @@ public final class AgentUsageStats implements Serializable {
         }
 
         // Gemini stores stats differently
-        JSONObject stats = json.optJSONObject("stats");
-        if (stats != null) {
-            extractGeminiStats(stats);
+        JSONObject statsBlock = json.optJSONObject("stats");
+        if (statsBlock != null) {
+            extractGeminiStats(statsBlock);
         }
     }
 
-    private void accumulateUsage(JSONObject usage) {
+    /** Accumulates token counts from a standard usage object. */
+    public void accumulateUsage(JSONObject usage) {
         inputTokens =
                 Math.max(
                         inputTokens,
@@ -260,25 +389,5 @@ public final class AgentUsageStats implements Serializable {
         cacheReadTokens = Math.max(cacheReadTokens, stats.optLong("cached", 0));
         durationMs = Math.max(durationMs, stats.optLong("duration_ms", 0));
         toolCalls = Math.max(toolCalls, stats.optInt("tool_calls", 0));
-    }
-
-    private void extractOpenCodePart(JSONObject part) {
-        double partCost = part.optDouble("cost", 0);
-        if (partCost > 0) costUsd += partCost;
-
-        JSONObject tokens = part.optJSONObject("tokens");
-        if (tokens == null) return;
-
-        inputTokens += tokens.optLong("input", 0);
-        outputTokens += tokens.optLong("output", 0);
-        reasoningTokens += tokens.optLong("reasoning", 0);
-        long partTotal = tokens.optLong("total", 0);
-        if (partTotal > 0) totalTokens += partTotal;
-
-        JSONObject cache = tokens.optJSONObject("cache");
-        if (cache != null) {
-            cacheReadTokens += cache.optLong("read", 0);
-            cacheWriteTokens += cache.optLong("write", 0);
-        }
     }
 }

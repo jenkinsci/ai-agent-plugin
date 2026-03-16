@@ -1,7 +1,7 @@
 package io.jenkins.plugins.aiagentjob;
 
 /** Shared execution settings used by the AI agent builder step and command execution flow. */
-interface AiAgentConfiguration {
+public interface AiAgentConfiguration {
     AiAgentTypeHandler getAgent();
 
     String getModel();

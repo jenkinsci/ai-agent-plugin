@@ -12,32 +12,32 @@ import java.util.Map;
  * Per-execution customizations contributed by an {@link AiAgentTypeHandler}, including extra
  * environment variables and cleanup hooks.
  */
-final class AiAgentExecutionCustomization {
+public final class AiAgentExecutionCustomization {
     @FunctionalInterface
-    interface CleanupAction {
+    public interface CleanupAction {
         void run() throws IOException, InterruptedException;
     }
 
     private final Map<String, String> environment = new LinkedHashMap<>();
     private final List<CleanupAction> cleanupActions = new ArrayList<>();
 
-    static AiAgentExecutionCustomization empty() {
+    public static AiAgentExecutionCustomization empty() {
         return new AiAgentExecutionCustomization();
     }
 
-    Map<String, String> getEnvironment() {
+    public Map<String, String> getEnvironment() {
         return environment;
     }
 
-    void putEnvironment(String key, String value) {
+    public void putEnvironment(String key, String value) {
         environment.put(key, value);
     }
 
-    void addCleanupAction(CleanupAction cleanupAction) {
+    public void addCleanupAction(CleanupAction cleanupAction) {
         cleanupActions.add(cleanupAction);
     }
 
-    void cleanup(TaskListener listener) {
+    public void cleanup(TaskListener listener) {
         for (CleanupAction cleanupAction : cleanupActions) {
             try {
                 cleanupAction.run();

@@ -5,10 +5,10 @@ import hudson.slaves.WorkspaceList;
 
 import java.io.IOException;
 
-final class AiAgentTempFiles {
+public final class AiAgentTempFiles {
     private AiAgentTempFiles() {}
 
-    static FilePath tempRoot(FilePath workspace) throws IOException, InterruptedException {
+    public static FilePath tempRoot(FilePath workspace) throws IOException, InterruptedException {
         FilePath tempRoot = WorkspaceList.tempDir(workspace);
         if (tempRoot == null) {
             FilePath parent = workspace.getParent();

@@ -1,19 +1,24 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeStatsExtractor;
+import io.jenkins.plugins.aiagentjob.codex.CodexStatsExtractor;
+import io.jenkins.plugins.aiagentjob.cursor.CursorStatsExtractor;
+import io.jenkins.plugins.aiagentjob.opencode.OpenCodeStatsExtractor;
 
 import net.sf.json.JSONObject;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 
-public class AgentUsageStatsTest {
+class AgentUsageStatsTest {
 
     private File fixtureFile(String name) throws IOException {
         File tempFile = File.createTempFile("stats-", ".jsonl");
@@ -25,13 +30,19 @@ public class AgentUsageStatsTest {
         return tempFile;
     }
 
+    private AgentUsageStats parseStats(String name, AiAgentStatsExtractor extractor)
+            throws IOException {
+        return AgentUsageStats.fromLogFile(fixtureFile(name), extractor);
+    }
+
     // ======================== Claude Code ========================
 
     @Test
-    public void claudeCode_extractsCostAndTokens() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-claude-code.jsonl"));
+    void claudeCode_extractsCostAndTokens() throws IOException {
+        AgentUsageStats stats =
+                parseStats("stats-claude-code.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
 
-        assertTrue("Should have data", stats.hasData());
+        assertTrue(stats.hasData(), "Should have data");
         assertEquals(12500, stats.getInputTokens());
         assertEquals(30, stats.getOutputTokens());
         assertEquals(11000, stats.getCacheReadTokens());
@@ -43,14 +54,16 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void claudeCode_durationFormattedCorrectly() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-claude-code.jsonl"));
+    void claudeCode_durationFormattedCorrectly() throws IOException {
+        AgentUsageStats stats =
+                parseStats("stats-claude-code.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
         assertEquals("2.7s", stats.getDurationDisplay());
     }
 
     @Test
-    public void claudeCode_totalTokensComputedFromComponents() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-claude-code.jsonl"));
+    void claudeCode_totalTokensComputedFromComponents() throws IOException {
+        AgentUsageStats stats =
+                parseStats("stats-claude-code.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
         long expected = 12500 + 30 + 11000 + 1000;
         assertEquals(expected, stats.getTotalTokens());
     }
@@ -58,8 +71,8 @@ public class AgentUsageStatsTest {
     // ======================== Gemini ========================
 
     @Test
-    public void gemini_extractsStatsBlock() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-gemini.jsonl"));
+    void gemini_extractsStatsBlock() throws IOException {
+        AgentUsageStats stats = parseStats("stats-gemini.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
 
         assertTrue(stats.hasData());
         assertEquals(4925, stats.getTotalTokens());
@@ -71,16 +84,16 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void gemini_noCostReturnsEmptyDisplay() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-gemini.jsonl"));
+    void gemini_noCostReturnsEmptyDisplay() throws IOException {
+        AgentUsageStats stats = parseStats("stats-gemini.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
         assertEquals("", stats.getCostDisplay());
     }
 
     // ======================== Codex ========================
 
     @Test
-    public void codex_extractsTurnCompletedUsage() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-codex.jsonl"));
+    void codex_extractsTurnCompletedUsage() throws IOException {
+        AgentUsageStats stats = parseStats("stats-codex.jsonl", CodexStatsExtractor.INSTANCE);
 
         assertTrue(stats.hasData());
         assertEquals(25602, stats.getInputTokens());
@@ -89,8 +102,8 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void codex_noCostOrDuration() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-codex.jsonl"));
+    void codex_noCostOrDuration() throws IOException {
+        AgentUsageStats stats = parseStats("stats-codex.jsonl", CodexStatsExtractor.INSTANCE);
         assertEquals("", stats.getCostDisplay());
         assertEquals("", stats.getDurationDisplay());
     }
@@ -98,8 +111,8 @@ public class AgentUsageStatsTest {
     // ======================== OpenCode ========================
 
     @Test
-    public void openCode_extractsStepFinishTokensAndCost() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-opencode.jsonl"));
+    void openCode_extractsStepFinishTokensAndCost() throws IOException {
+        AgentUsageStats stats = parseStats("stats-opencode.jsonl", OpenCodeStatsExtractor.INSTANCE);
 
         assertTrue(stats.hasData());
         assertEquals(198, stats.getInputTokens());
@@ -112,9 +125,9 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void openCode_multiStepAggregates() throws IOException {
+    void openCode_multiStepAggregates() throws IOException {
         AgentUsageStats stats =
-                AgentUsageStats.fromLogFile(fixtureFile("stats-opencode-multi-step.jsonl"));
+                parseStats("stats-opencode-multi-step.jsonl", OpenCodeStatsExtractor.INSTANCE);
 
         assertTrue(stats.hasData());
         assertEquals(100 + 200, stats.getInputTokens());
@@ -129,8 +142,8 @@ public class AgentUsageStatsTest {
     // ======================== Cursor ========================
 
     @Test
-    public void cursor_extractsResultUsage() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-cursor.jsonl"));
+    void cursor_extractsResultUsage() throws IOException {
+        AgentUsageStats stats = parseStats("stats-cursor.jsonl", CursorStatsExtractor.INSTANCE);
 
         assertTrue(stats.hasData());
         assertEquals(103854, stats.getInputTokens());
@@ -141,15 +154,15 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void cursor_durationFormatsMinutes() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-cursor.jsonl"));
+    void cursor_durationFormatsMinutes() throws IOException {
+        AgentUsageStats stats = parseStats("stats-cursor.jsonl", CursorStatsExtractor.INSTANCE);
         assertEquals("1m 2s", stats.getDurationDisplay());
     }
 
     // ======================== Edge cases ========================
 
     @Test
-    public void nullFile_returnsEmptyStats() throws IOException {
+    void nullFile_returnsEmptyStats() throws IOException {
         AgentUsageStats stats = AgentUsageStats.fromLogFile(null);
         assertFalse(stats.hasData());
         assertEquals("", stats.getCostDisplay());
@@ -157,13 +170,13 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void nonExistentFile_returnsEmptyStats() throws IOException {
+    void nonExistentFile_returnsEmptyStats() throws IOException {
         AgentUsageStats stats = AgentUsageStats.fromLogFile(new File("/nonexistent/path.jsonl"));
         assertFalse(stats.hasData());
     }
 
     @Test
-    public void emptyFile_returnsEmptyStats() throws IOException {
+    void emptyFile_returnsEmptyStats() throws IOException {
         File empty = File.createTempFile("empty-", ".jsonl");
         empty.deleteOnExit();
         AgentUsageStats stats = AgentUsageStats.fromLogFile(empty);
@@ -171,7 +184,7 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void malformedJson_isSkippedGracefully() throws IOException {
+    void malformedJson_isSkippedGracefully() throws IOException {
         File temp = File.createTempFile("bad-", ".jsonl");
         temp.deleteOnExit();
         Files.write(
@@ -189,7 +202,7 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void extractFrom_directJsonObject() {
+    void extractFrom_directJsonObject() {
         AgentUsageStats stats = new AgentUsageStats();
         JSONObject json =
                 JSONObject.fromObject(
@@ -206,7 +219,7 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void durationDisplay_milliseconds() {
+    void durationDisplay_milliseconds() {
         AgentUsageStats stats = new AgentUsageStats();
         JSONObject json =
                 JSONObject.fromObject(
@@ -217,7 +230,7 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void totalTokens_usesExplicitFieldWhenPresent() {
+    void totalTokens_usesExplicitFieldWhenPresent() {
         AgentUsageStats stats = new AgentUsageStats();
         JSONObject json =
                 JSONObject.fromObject(
@@ -231,8 +244,8 @@ public class AgentUsageStatsTest {
     // ======================== Formatted display ========================
 
     @Test
-    public void formattedTokens_haveCommaSeparators() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-cursor.jsonl"));
+    void formattedTokens_haveCommaSeparators() throws IOException {
+        AgentUsageStats stats = parseStats("stats-cursor.jsonl", CursorStatsExtractor.INSTANCE);
         assertEquals("103,854", stats.getInputTokensDisplay());
         assertEquals("1,583", stats.getOutputTokensDisplay());
         assertEquals("90,357", stats.getCacheReadTokensDisplay());
@@ -240,7 +253,7 @@ public class AgentUsageStatsTest {
     }
 
     @Test
-    public void formattedTokens_smallNumbersNoComma() {
+    void formattedTokens_smallNumbersNoComma() {
         AgentUsageStats stats = new AgentUsageStats();
         JSONObject json =
                 JSONObject.fromObject(
@@ -253,26 +266,27 @@ public class AgentUsageStatsTest {
     // ======================== Model detection ========================
 
     @Test
-    public void detectsModel_fromSystemInit() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-claude-code.jsonl"));
+    void detectsModel_fromSystemInit() throws IOException {
+        AgentUsageStats stats =
+                parseStats("stats-claude-code.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
         assertEquals("claude-test-4", stats.getDetectedModel());
     }
 
     @Test
-    public void detectsModel_fromGeminiInit() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-gemini.jsonl"));
+    void detectsModel_fromGeminiInit() throws IOException {
+        AgentUsageStats stats = parseStats("stats-gemini.jsonl", ClaudeCodeStatsExtractor.INSTANCE);
         assertEquals("gemini-test-pro", stats.getDetectedModel());
     }
 
     @Test
-    public void detectsModel_fromCursorInit() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-cursor.jsonl"));
+    void detectsModel_fromCursorInit() throws IOException {
+        AgentUsageStats stats = parseStats("stats-cursor.jsonl", CursorStatsExtractor.INSTANCE);
         assertEquals("test-model-4", stats.getDetectedModel());
     }
 
     @Test
-    public void detectsModel_emptyWhenNoInit() throws IOException {
-        AgentUsageStats stats = AgentUsageStats.fromLogFile(fixtureFile("stats-codex.jsonl"));
+    void detectsModel_emptyWhenNoInit() throws IOException {
+        AgentUsageStats stats = parseStats("stats-codex.jsonl", CodexStatsExtractor.INSTANCE);
         assertEquals("", stats.getDetectedModel());
     }
 }

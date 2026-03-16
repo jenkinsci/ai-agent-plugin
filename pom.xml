@@ -39,7 +39,7 @@
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
     <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
-    <ban-junit4-imports.skip>true</ban-junit4-imports.skip>
+    <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
   </properties>
 
   <dependencyManagement>

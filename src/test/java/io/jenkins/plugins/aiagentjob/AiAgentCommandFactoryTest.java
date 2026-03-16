@@ -1,16 +1,22 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
+import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeAgentHandler;
+import io.jenkins.plugins.aiagentjob.codex.CodexAgentHandler;
+import io.jenkins.plugins.aiagentjob.cursor.CursorAgentHandler;
+import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
+import io.jenkins.plugins.aiagentjob.opencode.OpenCodeAgentHandler;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class AiAgentCommandFactoryTest {
+class AiAgentCommandFactoryTest {
 
     private static AiAgentBuilder createProject(AiAgentTypeHandler handler) {
         AiAgentBuilder project = new AiAgentBuilder();
@@ -31,278 +37,278 @@ public class AiAgentCommandFactoryTest {
     // ======================== Claude Code Command Tests ========================
 
     @Test
-    public void claudeCode_basicCommand() {
+    void claudeCode_basicCommand() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setPrompt("Hello world");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "Hello world");
 
-        assertTrue("Should start with npx", cmd.get(0).equals("npx"));
-        assertTrue("Should have -y", cmd.contains("-y"));
-        assertTrue("Should have claude-code package", cmd.contains("@anthropic-ai/claude-code"));
-        assertTrue("Should have -p flag", cmd.contains("-p"));
-        assertTrue("Should have prompt", cmd.contains("Hello world"));
-        assertTrue("Should have stream-json output", cmd.contains("--output-format=stream-json"));
-        assertTrue("Should have --verbose", cmd.contains("--verbose"));
+        assertEquals("npx", cmd.get(0), "Should start with npx");
+        assertTrue(cmd.contains("-y"), "Should have -y");
+        assertTrue(cmd.contains("@anthropic-ai/claude-code"), "Should have claude-code package");
+        assertTrue(cmd.contains("-p"), "Should have -p flag");
+        assertTrue(cmd.contains("Hello world"), "Should have prompt");
+        assertTrue(cmd.contains("--output-format=stream-json"), "Should have stream-json output");
+        assertTrue(cmd.contains("--verbose"), "Should have --verbose");
         assertFalse(
-                "Should NOT have --input-format=stream-json (not interactive)",
-                cmd.contains("--input-format=stream-json"));
+                cmd.contains("--input-format=stream-json"),
+                "Should NOT have --input-format=stream-json (not interactive)");
     }
 
     @Test
-    public void claudeCode_yoloMode() {
+    void claudeCode_yoloMode() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test prompt");
 
         assertTrue(
-                "Should have --dangerously-skip-permissions",
-                cmd.contains("--dangerously-skip-permissions"));
+                cmd.contains("--dangerously-skip-permissions"),
+                "Should have --dangerously-skip-permissions");
         assertFalse(
-                "Should NOT have --permission-mode=default",
-                cmd.contains("--permission-mode=default"));
+                cmd.contains("--permission-mode=default"),
+                "Should NOT have --permission-mode=default");
     }
 
     @Test
-    public void claudeCode_approvalsMode() {
+    void claudeCode_approvalsMode() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setRequireApprovals(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test prompt");
 
         assertTrue(
-                "Should have --permission-mode=default", cmd.contains("--permission-mode=default"));
+                cmd.contains("--permission-mode=default"), "Should have --permission-mode=default");
         assertFalse(
-                "Should NOT have --dangerously-skip-permissions",
-                cmd.contains("--dangerously-skip-permissions"));
+                cmd.contains("--dangerously-skip-permissions"),
+                "Should NOT have --dangerously-skip-permissions");
     }
 
     @Test
-    public void claudeCode_withModel() {
+    void claudeCode_withModel() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setModel("claude-opus-4");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         int modelIdx = cmd.indexOf("--model");
-        assertTrue("Should have --model", modelIdx >= 0);
+        assertTrue(modelIdx >= 0, "Should have --model");
         assertEquals("claude-opus-4", cmd.get(modelIdx + 1));
     }
 
     // ======================== Codex Command Tests ========================
 
     @Test
-    public void codex_basicCommand() {
+    void codex_basicCommand() {
         AiAgentBuilder project = createProject(new CodexAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "fix the bug");
 
         assertEquals("codex", cmd.get(0));
         assertEquals("exec", cmd.get(1));
-        assertTrue("Should have --json for JSONL output", cmd.contains("--json"));
+        assertTrue(cmd.contains("--json"), "Should have --json for JSONL output");
         assertTrue(
-                "Should have --skip-git-repo-check for CI environments",
-                cmd.contains("--skip-git-repo-check"));
-        assertTrue("Should have prompt at end", cmd.contains("fix the bug"));
+                cmd.contains("--skip-git-repo-check"),
+                "Should have --skip-git-repo-check for CI environments");
+        assertTrue(cmd.contains("fix the bug"), "Should have prompt at end");
     }
 
     @Test
-    public void codex_yoloMode() {
+    void codex_yoloMode() {
         AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         assertTrue(
-                "Should have --dangerously-bypass-approvals-and-sandbox",
-                cmd.contains("--dangerously-bypass-approvals-and-sandbox"));
-        assertFalse("Should NOT have --sandbox", cmd.contains("--sandbox"));
-        assertFalse("Should NOT have --full-auto in yolo mode", cmd.contains("--full-auto"));
+                cmd.contains("--dangerously-bypass-approvals-and-sandbox"),
+                "Should have --dangerously-bypass-approvals-and-sandbox");
+        assertFalse(cmd.contains("--sandbox"), "Should NOT have --sandbox");
+        assertFalse(cmd.contains("--full-auto"), "Should NOT have --full-auto in yolo mode");
     }
 
     @Test
-    public void codex_defaultMode() {
+    void codex_defaultMode() {
         AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setYoloMode(false);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue("Should have --sandbox", cmd.contains("--sandbox"));
-        assertTrue("Should have workspace-write", cmd.contains("workspace-write"));
-        assertTrue("Should have --full-auto for headless execution", cmd.contains("--full-auto"));
+        assertTrue(cmd.contains("--sandbox"), "Should have --sandbox");
+        assertTrue(cmd.contains("workspace-write"), "Should have workspace-write");
+        assertTrue(cmd.contains("--full-auto"), "Should have --full-auto for headless execution");
         assertFalse(
-                "Should NOT have --ask-for-approval (not valid for codex exec)",
-                cmd.contains("--ask-for-approval"));
+                cmd.contains("--ask-for-approval"),
+                "Should NOT have --ask-for-approval (not valid for codex exec)");
     }
 
     @Test
-    public void codex_withModel() {
+    void codex_withModel() {
         AiAgentBuilder project = createProject(new CodexAgentHandler());
         project.setModel("o3");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         int modelIdx = cmd.indexOf("--model");
-        assertTrue("Should have --model", modelIdx >= 0);
+        assertTrue(modelIdx >= 0, "Should have --model");
         assertEquals("o3", cmd.get(modelIdx + 1));
     }
 
     @Test
-    public void codex_promptIsLastArgument() {
+    void codex_promptIsLastArgument() {
         AiAgentBuilder project = createProject(new CodexAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "refactor this");
 
-        assertEquals("Prompt should be last argument", "refactor this", cmd.get(cmd.size() - 1));
+        assertEquals("refactor this", cmd.get(cmd.size() - 1), "Prompt should be last argument");
     }
 
     // ======================== Cursor Agent Command Tests ========================
 
     @Test
-    public void cursorAgent_basicCommand() {
+    void cursorAgent_basicCommand() {
         AiAgentBuilder project = createProject(new CursorAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "analyze code");
 
         assertEquals("agent", cmd.get(0));
-        assertTrue("Should have -p for print mode", cmd.contains("-p"));
+        assertTrue(cmd.contains("-p"), "Should have -p for print mode");
         assertTrue(
-                "Should have --output-format=stream-json",
-                cmd.contains("--output-format=stream-json"));
-        assertTrue("Should have --trust for headless mode", cmd.contains("--trust"));
-        assertTrue("Should have --approve-mcps for headless mode", cmd.contains("--approve-mcps"));
-        assertTrue("Should have prompt", cmd.contains("analyze code"));
+                cmd.contains("--output-format=stream-json"),
+                "Should have --output-format=stream-json");
+        assertTrue(cmd.contains("--trust"), "Should have --trust for headless mode");
+        assertTrue(cmd.contains("--approve-mcps"), "Should have --approve-mcps for headless mode");
+        assertTrue(cmd.contains("analyze code"), "Should have prompt");
     }
 
     @Test
-    public void cursorAgent_yoloMode() {
+    void cursorAgent_yoloMode() {
         AiAgentBuilder project = createProject(new CursorAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue("Should have --yolo", cmd.contains("--yolo"));
+        assertTrue(cmd.contains("--yolo"), "Should have --yolo");
     }
 
     @Test
-    public void cursorAgent_withModel() {
+    void cursorAgent_withModel() {
         AiAgentBuilder project = createProject(new CursorAgentHandler());
         project.setModel("sonnet-4-thinking");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         int modelIdx = cmd.indexOf("--model");
-        assertTrue("Should have --model", modelIdx >= 0);
+        assertTrue(modelIdx >= 0, "Should have --model");
         assertEquals("sonnet-4-thinking", cmd.get(modelIdx + 1));
     }
 
     // ======================== OpenCode Command Tests ========================
 
     @Test
-    public void openCode_basicCommand() {
+    void openCode_basicCommand() {
         AiAgentBuilder project = createProject(new OpenCodeAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "explain this");
 
         assertEquals("opencode", cmd.get(0));
         assertEquals("run", cmd.get(1));
-        assertTrue("Should have --format", cmd.contains("--format"));
-        assertTrue("Should have json", cmd.contains("json"));
-        assertTrue("Should have prompt", cmd.contains("explain this"));
+        assertTrue(cmd.contains("--format"), "Should have --format");
+        assertTrue(cmd.contains("json"), "Should have json");
+        assertTrue(cmd.contains("explain this"), "Should have prompt");
     }
 
     @Test
-    public void openCode_withModel() {
+    void openCode_withModel() {
         AiAgentBuilder project = createProject(new OpenCodeAgentHandler());
         project.setModel("anthropic/claude-sonnet-4");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         int modelIdx = cmd.indexOf("--model");
-        assertTrue("Should have --model", modelIdx >= 0);
+        assertTrue(modelIdx >= 0, "Should have --model");
         assertEquals("anthropic/claude-sonnet-4", cmd.get(modelIdx + 1));
     }
 
     // ======================== Gemini CLI Command Tests ========================
 
     @Test
-    public void geminiCli_basicCommand() {
+    void geminiCli_basicCommand() {
         AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "summarize project");
 
         assertEquals("gemini", cmd.get(0));
-        assertTrue("Should have -p for prompt", cmd.contains("-p"));
-        assertTrue("Should have --output-format", cmd.contains("--output-format"));
-        assertTrue("Should have stream-json", cmd.contains("stream-json"));
-        assertTrue("Should have prompt", cmd.contains("summarize project"));
+        assertTrue(cmd.contains("-p"), "Should have -p for prompt");
+        assertTrue(cmd.contains("--output-format"), "Should have --output-format");
+        assertTrue(cmd.contains("stream-json"), "Should have stream-json");
+        assertTrue(cmd.contains("summarize project"), "Should have prompt");
     }
 
     @Test
-    public void geminiCli_yoloMode() {
+    void geminiCli_yoloMode() {
         AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setYoloMode(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue("Should have --yolo", cmd.contains("--yolo"));
+        assertTrue(cmd.contains("--yolo"), "Should have --yolo");
     }
 
     @Test
-    public void geminiCli_withApprovals() {
+    void geminiCli_withApprovals() {
         AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setRequireApprovals(true);
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue("Should have --approval-mode", cmd.contains("--approval-mode"));
-        assertTrue("Should have default", cmd.contains("default"));
+        assertTrue(cmd.contains("--approval-mode"), "Should have --approval-mode");
+        assertTrue(cmd.contains("default"), "Should have default");
     }
 
     @Test
-    public void geminiCli_withModel() {
+    void geminiCli_withModel() {
         AiAgentBuilder project = createProject(new GeminiCliAgentHandler());
         project.setModel("gemini-2.5-flash");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
         int modelIdx = cmd.indexOf("-m");
-        assertTrue("Should have -m", modelIdx >= 0);
+        assertTrue(modelIdx >= 0, "Should have -m");
         assertEquals("gemini-2.5-flash", cmd.get(modelIdx + 1));
     }
 
     // ======================== Extra Args Tests ========================
 
     @Test
-    public void extraArgs_appendedToCommand() {
+    void extraArgs_appendedToCommand() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setExtraArgs("--max-budget-usd 5 --effort high");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue("Should contain --max-budget-usd", cmd.contains("--max-budget-usd"));
-        assertTrue("Should contain 5", cmd.contains("5"));
-        assertTrue("Should contain --effort", cmd.contains("--effort"));
-        assertTrue("Should contain high", cmd.contains("high"));
+        assertTrue(cmd.contains("--max-budget-usd"), "Should contain --max-budget-usd");
+        assertTrue(cmd.contains("5"), "Should contain 5");
+        assertTrue(cmd.contains("--effort"), "Should contain --effort");
+        assertTrue(cmd.contains("high"), "Should contain high");
     }
 
     @Test
-    public void extraArgs_emptyDoesNotAddTokens() {
+    void extraArgs_emptyDoesNotAddTokens() {
         AiAgentBuilder project = createProject(new ClaudeCodeAgentHandler());
         project.setExtraArgs("   ");
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
         int verboseIdx = cmd.indexOf("--verbose");
         assertEquals(
-                "Last regular arg should be the last element or close", verboseIdx, cmd.size() - 1);
+                verboseIdx, cmd.size() - 1, "Last regular arg should be the last element or close");
     }
 
     // ======================== Environment Variable Parsing
     // ========================
 
     @Test
-    public void parseEnvironmentVariables_basic() {
+    void parseEnvironmentVariables_basic() {
         Map<String, String> vars =
                 AiAgentCommandFactory.parseEnvironmentVariables("KEY1=value1\nKEY2=value2");
         assertEquals(2, vars.size());
@@ -311,7 +317,7 @@ public class AiAgentCommandFactoryTest {
     }
 
     @Test
-    public void parseEnvironmentVariables_handlesCommentsAndBlanks() {
+    void parseEnvironmentVariables_handlesCommentsAndBlanks() {
         Map<String, String> vars =
                 AiAgentCommandFactory.parseEnvironmentVariables(
                         "# comment\nKEY=val\n\n  # another comment\n  ");
@@ -320,7 +326,7 @@ public class AiAgentCommandFactoryTest {
     }
 
     @Test
-    public void parseEnvironmentVariables_handlesEqualsInValue() {
+    void parseEnvironmentVariables_handlesEqualsInValue() {
         Map<String, String> vars =
                 AiAgentCommandFactory.parseEnvironmentVariables(
                         "DATABASE_URL=postgres://user:pass@host/db?sslmode=require");
@@ -329,14 +335,14 @@ public class AiAgentCommandFactoryTest {
     }
 
     @Test
-    public void parseEnvironmentVariables_handlesNullAndEmpty() {
+    void parseEnvironmentVariables_handlesNullAndEmpty() {
         assertTrue(AiAgentCommandFactory.parseEnvironmentVariables(null).isEmpty());
         assertTrue(AiAgentCommandFactory.parseEnvironmentVariables("").isEmpty());
         assertTrue(AiAgentCommandFactory.parseEnvironmentVariables("   ").isEmpty());
     }
 
     @Test
-    public void parseEnvironmentVariables_handlesWindowsLineEndings() {
+    void parseEnvironmentVariables_handlesWindowsLineEndings() {
         Map<String, String> vars =
                 AiAgentCommandFactory.parseEnvironmentVariables("A=1\r\nB=2\r\n");
         assertEquals(2, vars.size());
@@ -347,19 +353,19 @@ public class AiAgentCommandFactoryTest {
     // ======================== Command As String ========================
 
     @Test
-    public void commandAsString_joinsTokens() {
+    void commandAsString_joinsTokens() {
         String result = AiAgentCommandFactory.commandAsString(List.of("echo", "hello", "world"));
         assertEquals("echo hello world", result);
     }
 
     @Test
-    public void commandAsString_quotesSpaces() {
+    void commandAsString_quotesSpaces() {
         String result = AiAgentCommandFactory.commandAsString(List.of("echo", "hello world"));
         assertEquals("echo \"hello world\"", result);
     }
 
     @Test
-    public void commandAsString_escapesQuotes() {
+    void commandAsString_escapesQuotes() {
         String result = AiAgentCommandFactory.commandAsString(List.of("echo", "say \"hi\""));
         assertEquals("echo \"say \\\"hi\\\"\"", result);
     }
@@ -367,26 +373,26 @@ public class AiAgentCommandFactoryTest {
     // ======================== Model Without Value ========================
 
     @Test
-    public void allAgents_noModelByDefault() {
+    void allAgents_noModelByDefault() {
         for (AiAgentTypeHandler handler : allHandlers()) {
             AiAgentBuilder project = createProject(handler);
             List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
             assertFalse(
-                    "Agent " + handler.getId() + " should not add --model when empty",
-                    cmd.contains("--model") || cmd.contains("-m"));
+                    cmd.contains("--model") || cmd.contains("-m"),
+                    "Agent " + handler.getId() + " should not add --model when empty");
         }
     }
 
     @Test
-    public void allAgents_havePromptInCommand() {
+    void allAgents_havePromptInCommand() {
         for (AiAgentTypeHandler handler : allHandlers()) {
             AiAgentBuilder project = createProject(handler);
             List<String> cmd =
                     AiAgentCommandFactory.buildDefaultCommand(
                             project, "unique-prompt-" + handler.getId());
             assertTrue(
-                    "Agent " + handler.getId() + " should have prompt in command",
-                    cmd.contains("unique-prompt-" + handler.getId()));
+                    cmd.contains("unique-prompt-" + handler.getId()),
+                    "Agent " + handler.getId() + " should have prompt in command");
         }
     }
 }

@@ -1,19 +1,19 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.model.FreeStyleProject;
 import hudson.util.FormValidation;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class AiAgentBuilderDescriptorValidationTest {
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class AiAgentBuilderDescriptorValidationTest {
 
     @Test
-    public void timeout_isOptionalWhenApprovalsDisabled() throws Exception {
+    void timeout_isOptionalWhenApprovalsDisabled(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject("ai-validation-approvals-off");
         AiAgentBuilder.DescriptorImpl descriptor = new AiAgentBuilder.DescriptorImpl();
 
@@ -23,7 +23,7 @@ public class AiAgentBuilderDescriptorValidationTest {
     }
 
     @Test
-    public void timeout_isRequiredWhenApprovalsEnabled() throws Exception {
+    void timeout_isRequiredWhenApprovalsEnabled(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject("ai-validation-approvals-on");
         AiAgentBuilder.DescriptorImpl descriptor = new AiAgentBuilder.DescriptorImpl();
 

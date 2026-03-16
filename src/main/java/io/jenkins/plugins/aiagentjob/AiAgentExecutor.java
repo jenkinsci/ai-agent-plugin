@@ -166,7 +166,8 @@ final class AiAgentExecutor {
                         rawLogFile,
                         liveExecution,
                         config.isRequireApprovals() && !config.isYoloMode(),
-                        approvalTimeout);
+                        approvalTimeout,
+                        config.getAgent().getLogFormat());
         OutputStream stdoutSink = new NonClosingSynchronizedOutputStream(outputHandler);
         OutputStream stderrSink = new NonClosingSynchronizedOutputStream(outputHandler);
 
@@ -364,6 +365,7 @@ final class AiAgentExecutor {
         private final ExecutionRegistry.LiveExecution liveExecution;
         private final boolean approvalsEnabled;
         private final Duration approvalTimeout;
+        private final AiAgentLogFormat logFormat;
         private final AtomicLong lineCounter = new AtomicLong();
         private volatile Proc proc;
         private volatile boolean deniedByApproval;
@@ -373,7 +375,8 @@ final class AiAgentExecutor {
                 File rawLogFile,
                 ExecutionRegistry.LiveExecution liveExecution,
                 boolean approvalsEnabled,
-                Duration approvalTimeout)
+                Duration approvalTimeout,
+                AiAgentLogFormat logFormat)
                 throws IOException {
             this.logger = logger;
             this.rawWriter =
@@ -384,6 +387,7 @@ final class AiAgentExecutor {
             this.liveExecution = liveExecution;
             this.approvalsEnabled = approvalsEnabled;
             this.approvalTimeout = approvalTimeout;
+            this.logFormat = logFormat;
         }
 
         void attach(Proc proc) {
@@ -414,7 +418,8 @@ final class AiAgentExecutor {
             }
 
             long id = lineCounter.incrementAndGet();
-            AiAgentLogParser.ParsedLine parsedLine = AiAgentLogParser.parseLine(id, line);
+            AiAgentLogParser.ParsedLine parsedLine =
+                    AiAgentLogParser.parseLine(id, line, logFormat);
             if (!parsedLine.isToolCall()) {
                 return;
             }

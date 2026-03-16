@@ -1,17 +1,17 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.GET;
 import org.kohsuke.stapler.verb.POST;
 
-public class StaplerEndpointSecurityTest {
+class StaplerEndpointSecurityTest {
     @Test
-    public void descriptorEndpoints_usePostVerbs() throws Exception {
+    void descriptorEndpoints_usePostVerbs() throws Exception {
         assertTrue(
                 AiAgentBuilder.DescriptorImpl.class
                         .getMethod(
@@ -30,7 +30,7 @@ public class StaplerEndpointSecurityTest {
     }
 
     @Test
-    public void runActionEndpoints_useExpectedHttpVerbs() throws Exception {
+    void runActionEndpoints_useExpectedHttpVerbs() throws Exception {
         assertTrue(
                 AiAgentRunAction.class
                         .getMethod(
@@ -50,7 +50,7 @@ public class StaplerEndpointSecurityTest {
     }
 
     @Test
-    public void builderDescriptor_isApplicableToAnyProject() {
+    void builderDescriptor_isApplicableToAnyProject() {
         assertTrue(
                 new AiAgentBuilder.DescriptorImpl()
                         .isApplicable(hudson.model.FreeStyleProject.class));

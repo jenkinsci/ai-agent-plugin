@@ -1,8 +1,8 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.FilePath;
 import hudson.model.FreeStyleBuild;
@@ -15,19 +15,24 @@ import hudson.model.StringParameterValue;
 import hudson.slaves.DumbSlave;
 import hudson.slaves.WorkspaceList;
 
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
+import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeAgentHandler;
+import io.jenkins.plugins.aiagentjob.codex.CodexAgentHandler;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import java.io.File;
 import java.nio.file.Files;
 
-public class AiAgentBuildExecutionTest {
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class AiAgentBuildExecutionTest {
 
     private FreeStyleProject newProject(
-            String name, java.util.function.Consumer<AiAgentBuilder> cfg) throws Exception {
+            JenkinsRule jenkins, String name, java.util.function.Consumer<AiAgentBuilder> cfg)
+            throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject(name);
         AiAgentBuilder builder = new AiAgentBuilder();
         cfg.accept(builder);
@@ -37,11 +42,11 @@ public class AiAgentBuildExecutionTest {
     }
 
     @Test
-    public void runsAgentCommandAndCapturesConversation() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void runsAgentCommandAndCapturesConversation(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-success",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -59,11 +64,11 @@ public class AiAgentBuildExecutionTest {
     }
 
     @Test
-    public void setupScript_runsBeforeAgent() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_runsBeforeAgent(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-setup-script",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -81,16 +86,16 @@ public class AiAgentBuildExecutionTest {
         String rawLog =
                 new String(java.nio.file.Files.readAllBytes(action.getRawLogFile().toPath()));
         assertTrue(
-                "Agent command should see variable exported by setup script",
-                rawLog.contains("setup=yes"));
+                rawLog.contains("setup=yes"),
+                "Agent command should see variable exported by setup script");
     }
 
     @Test
-    public void setupScript_failureAbortsBuild() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_failureAbortsBuild(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-setup-fail",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -104,15 +109,15 @@ public class AiAgentBuildExecutionTest {
         FreeStyleBuild build = project.scheduleBuild2(0).get();
         jenkins.assertBuildStatus(Result.FAILURE, build);
         String log = jenkins.getLog(build);
-        assertFalse("Agent should NOT have run", log.contains("should not run"));
+        assertFalse(log.contains("should not run"), "Agent should NOT have run");
     }
 
     @Test
-    public void setupScript_emptyIsSkipped() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_emptyIsSkipped(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-no-setup",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -126,16 +131,16 @@ public class AiAgentBuildExecutionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String log = jenkins.getLog(build);
         assertFalse(
-                "Should not mention setup script",
-                log.contains("Setup script will run before the agent"));
+                log.contains("Setup script will run before the agent"),
+                "Should not mention setup script");
     }
 
     @Test
-    public void setupScript_receivesEnvironmentVariables() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_receivesEnvironmentVariables(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-setup-env",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -149,15 +154,15 @@ public class AiAgentBuildExecutionTest {
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String log = jenkins.getLog(build);
-        assertTrue("Setup script should see custom env vars", log.contains("GOT_secret_value_123"));
+        assertTrue(log.contains("GOT_secret_value_123"), "Setup script should see custom env vars");
     }
 
     @Test
-    public void setupScript_exportsFlowToAgentCommand() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_exportsFlowToAgentCommand(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-setup-export",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -171,16 +176,16 @@ public class AiAgentBuildExecutionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String log = jenkins.getLog(build);
         assertTrue(
-                "Exported var from setup should be visible in agent command",
-                log.contains("val=from_setup_script"));
+                log.contains("val=from_setup_script"),
+                "Exported var from setup should be visible in agent command");
     }
 
     @Test
-    public void codexCustomConfig_createsRunScopedCodexHome() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void codexCustomConfig_createsRunScopedCodexHome(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-codex-cfg",
                         b -> {
                             CodexAgentHandler codex = new CodexAgentHandler();
@@ -201,21 +206,21 @@ public class AiAgentBuildExecutionTest {
         assertNotNull(action);
         String log = new String(java.nio.file.Files.readAllBytes(action.getRawLogFile().toPath()));
         assertTrue(
-                "Codex config should be found in the run-scoped home",
-                log.contains("CODEX_CONFIG_FOUND"));
+                log.contains("CODEX_CONFIG_FOUND"),
+                "Codex config should be found in the run-scoped home");
         assertTrue(
-                "Codex config should be written to run-scoped home",
-                log.contains("[mcp_servers.demo]"));
-        assertTrue("Codex config should preserve TOML content", log.contains("command = \"npx\""));
-        assertFalse("Codex config should not be missing", log.contains("CODEX_CONFIG_MISSING"));
+                log.contains("[mcp_servers.demo]"),
+                "Codex config should be written to run-scoped home");
+        assertTrue(log.contains("command = \"npx\""), "Codex config should preserve TOML content");
+        assertFalse(log.contains("CODEX_CONFIG_MISSING"), "Codex config should not be missing");
     }
 
     @Test
-    public void failsWhenApprovalTimesOut() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void failsWhenApprovalTimesOut(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-approval-timeout",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -238,11 +243,11 @@ public class AiAgentBuildExecutionTest {
     }
 
     @Test
-    public void commandOverride_receivesStepEnvironmentVariables() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void commandOverride_receivesStepEnvironmentVariables(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-step-env",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -268,17 +273,17 @@ public class AiAgentBuildExecutionTest {
         assertNotNull(action);
         String rawLog = Files.readString(action.getRawLogFile().toPath());
         assertTrue(
-                "Command override should inherit step-scoped env vars",
-                rawLog.contains("step=from-parameter"));
+                rawLog.contains("step=from-parameter"),
+                "Command override should inherit step-scoped env vars");
     }
 
     @Test
-    public void setupScript_usesAgentLocalTempPathOnRemoteNode() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void setupScript_usesAgentLocalTempPathOnRemoteNode(JenkinsRule jenkins) throws Exception {
         DumbSlave agent = jenkins.createOnlineSlave();
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-remote-setup-temp",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
@@ -298,17 +303,18 @@ public class AiAgentBuildExecutionTest {
 
         String log = jenkins.getLog(build);
         assertTrue(
-                "Setup script should run from the agent temp area",
-                log.contains("SETUP_SCRIPT_PATH=" + tempRoot.getRemote()));
+                log.contains("SETUP_SCRIPT_PATH=" + tempRoot.getRemote()),
+                "Setup script should run from the agent temp area");
     }
 
     @Test
-    public void codexCustomConfig_usesAgentLocalTempPathOnRemoteNode() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void codexCustomConfig_usesAgentLocalTempPathOnRemoteNode(JenkinsRule jenkins)
+            throws Exception {
         DumbSlave agent = jenkins.createOnlineSlave();
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "ai-build-remote-codex-home",
                         b -> {
                             CodexAgentHandler codex = new CodexAgentHandler();
@@ -335,10 +341,10 @@ public class AiAgentBuildExecutionTest {
         String expectedHomePrefix =
                 "home=" + tempRoot.getRemote() + File.separator + "ai-agent-codex-home-";
         assertTrue(
-                "Codex home should come from the agent temp area",
-                rawLog.contains(expectedHomePrefix));
+                rawLog.contains(expectedHomePrefix),
+                "Codex home should come from the agent temp area");
         assertTrue(
-                "Codex config path should resolve inside the run-scoped home",
-                rawLog.contains("/.codex/config.toml"));
+                rawLog.contains("/.codex/config.toml"),
+                "Codex config path should resolve inside the run-scoped home");
     }
 }

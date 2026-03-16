@@ -1,11 +1,16 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
+import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeLogFormat;
+import io.jenkins.plugins.aiagentjob.codex.CodexLogFormat;
+import io.jenkins.plugins.aiagentjob.cursor.CursorLogFormat;
+import io.jenkins.plugins.aiagentjob.opencode.OpenCodeLogFormat;
+
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,16 +19,21 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class AiAgentLogParserTest {
+class AiAgentLogParserTest {
 
     private List<AiAgentLogParser.EventView> parseFixture(String name) throws IOException {
+        return parseFixture(name, null);
+    }
+
+    private List<AiAgentLogParser.EventView> parseFixture(String name, AiAgentLogFormat format)
+            throws IOException {
         File tempFile = File.createTempFile("fixture-", ".jsonl");
         tempFile.deleteOnExit();
         try (InputStream is = getClass().getResourceAsStream("fixtures/" + name)) {
-            assertNotNull("Fixture not found: " + name, is);
+            assertNotNull(is, "Fixture not found: " + name);
             Files.copy(is, tempFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
-        return AiAgentLogParser.parse(tempFile);
+        return AiAgentLogParser.parse(tempFile, format);
     }
 
     private List<String> categories(List<AiAgentLogParser.EventView> events) {
@@ -35,65 +45,69 @@ public class AiAgentLogParserTest {
     // ======================== Claude Code Tests ========================
 
     @Test
-    public void claudeCodeConversation_parsesAllEventTypes() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("claude-code-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void claudeCodeConversation_parsesAllEventTypes() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("claude-code-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have system init", cats.contains("system"));
-        assertTrue("Should have thinking", cats.contains("thinking"));
-        assertTrue("Should have tool_call", cats.contains("tool_call"));
-        assertTrue("Should have tool_result", cats.contains("tool_result"));
-        assertTrue("Should have assistant", cats.contains("assistant"));
+        assertTrue(cats.contains("system"), "Should have system init");
+        assertTrue(cats.contains("thinking"), "Should have thinking");
+        assertTrue(cats.contains("tool_call"), "Should have tool_call");
+        assertTrue(cats.contains("tool_result"), "Should have tool_result");
+        assertTrue(cats.contains("assistant"), "Should have assistant");
     }
 
     @Test
-    public void claudeCodeConversation_detectsToolCallsWithNames() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("claude-code-conversation.jsonl");
+    void claudeCodeConversation_detectsToolCallsWithNames() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("claude-code-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> toolCalls =
                 events.stream()
                         .filter(e -> "tool_call".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertFalse("Should have tool calls", toolCalls.isEmpty());
+        assertFalse(toolCalls.isEmpty(), "Should have tool calls");
         boolean hasBash = toolCalls.stream().anyMatch(e -> e.getSummary().contains("Bash"));
         boolean hasRead = toolCalls.stream().anyMatch(e -> e.getSummary().contains("Read"));
-        assertTrue("Should detect Bash tool call", hasBash);
-        assertTrue("Should detect Read tool call", hasRead);
+        assertTrue(hasBash, "Should detect Bash tool call");
+        assertTrue(hasRead, "Should detect Read tool call");
     }
 
     @Test
-    public void claudeCodeConversation_capturesThinkingContent() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("claude-code-conversation.jsonl");
+    void claudeCodeConversation_capturesThinkingContent() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("claude-code-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> thinking =
                 events.stream()
                         .filter(e -> "thinking".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertFalse("Should have thinking events", thinking.isEmpty());
+        assertFalse(thinking.isEmpty(), "Should have thinking events");
         assertTrue(
-                "Thinking summary should mention analyzing",
-                thinking.get(0).getSummary().contains("list the files"));
+                thinking.get(0).getSummary().contains("list the files"),
+                "Thinking summary should mention analyzing");
     }
 
     @Test
-    public void claudeCodeStreaming_parsesStreamEvents() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("claude-code-streaming.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void claudeCodeStreaming_parsesStreamEvents() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("claude-code-streaming.jsonl", ClaudeCodeLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have system events", cats.contains("system"));
-        assertTrue("Should have thinking from stream", cats.contains("thinking"));
-        assertTrue("Should have assistant from stream", cats.contains("assistant"));
+        assertTrue(cats.contains("system"), "Should have system events");
+        assertTrue(cats.contains("thinking"), "Should have thinking from stream");
+        assertTrue(cats.contains("assistant"), "Should have assistant from stream");
     }
 
     @Test
-    public void claudeCodeToolUseApproval_detectsMultipleToolCalls() throws IOException {
+    void claudeCodeToolUseApproval_detectsMultipleToolCalls() throws IOException {
         List<AiAgentLogParser.EventView> events =
-                parseFixture("claude-code-tool-use-approval.jsonl");
+                parseFixture("claude-code-tool-use-approval.jsonl", ClaudeCodeLogFormat.INSTANCE);
         long toolCallCount =
                 events.stream().filter(e -> "tool_call".equals(e.getCategory())).count();
-        assertTrue("Should have at least 2 tool calls (Edit and Bash)", toolCallCount >= 2);
+        assertTrue(toolCallCount >= 2, "Should have at least 2 tool calls (Edit and Bash)");
 
         boolean hasEdit =
                 events.stream()
@@ -103,175 +117,185 @@ public class AiAgentLogParserTest {
                 events.stream()
                         .filter(e -> "tool_call".equals(e.getCategory()))
                         .anyMatch(e -> e.getSummary().contains("Bash"));
-        assertTrue("Should detect Edit tool call", hasEdit);
-        assertTrue("Should detect Bash tool call", hasBash);
+        assertTrue(hasEdit, "Should detect Edit tool call");
+        assertTrue(hasBash, "Should detect Bash tool call");
     }
 
     // ======================== Codex Tests ========================
 
     @Test
-    public void codexConversation_parsesCurrentTranscriptShape() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void codexConversation_parsesCurrentTranscriptShape() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("codex-conversation.jsonl", CodexLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have thinking (reasoning)", cats.contains("thinking"));
-        assertTrue("Should have tool_call (command_execution started)", cats.contains("tool_call"));
+        assertTrue(cats.contains("thinking"), "Should have thinking (reasoning)");
+        assertTrue(cats.contains("tool_call"), "Should have tool_call (command_execution started)");
         assertTrue(
-                "Should have tool_result (command_execution completed)",
-                cats.contains("tool_result"));
-        assertTrue("Should have assistant (agent_message)", cats.contains("assistant"));
-        assertEquals("Current Codex fixture should keep only 6 visible events", 6, events.size());
+                cats.contains("tool_result"),
+                "Should have tool_result (command_execution completed)");
+        assertTrue(cats.contains("assistant"), "Should have assistant (agent_message)");
+        assertEquals(6, events.size(), "Current Codex fixture should keep only 6 visible events");
     }
 
     @Test
-    public void codexConversation_showsStartedCommandsWithCommandText() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
+    void codexConversation_showsStartedCommandsWithCommandText() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("codex-conversation.jsonl", CodexLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> toolCalls =
                 events.stream()
                         .filter(e -> "tool_call".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertEquals("Should have 2 visible command starts", 2, toolCalls.size());
+        assertEquals(2, toolCalls.size(), "Should have 2 visible command starts");
         assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().contains("git remote -v")));
         assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().contains("rg --files")));
     }
 
     @Test
-    public void codexConversation_hidesCompletionsWithoutOutput() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
+    void codexConversation_hidesCompletionsWithoutOutput() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("codex-conversation.jsonl", CodexLogFormat.INSTANCE);
         long started = events.stream().filter(e -> "tool_call".equals(e.getCategory())).count();
         long completed = events.stream().filter(e -> "tool_result".equals(e.getCategory())).count();
-        assertEquals("Fixture should keep both started commands visible", 2, started);
+        assertEquals(2, started, "Fixture should keep both started commands visible");
         assertEquals(
-                "Only the command with aggregated output should render a result", 1, completed);
+                1, completed, "Only the command with aggregated output should render a result");
     }
 
     @Test
-    public void codexConversation_completedCommandsShowAggregatedOutput() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
+    void codexConversation_completedCommandsShowAggregatedOutput() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("codex-conversation.jsonl", CodexLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> toolResults =
                 events.stream()
                         .filter(e -> "tool_result".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertEquals("Should have exactly 1 visible tool result", 1, toolResults.size());
+        assertEquals(1, toolResults.size(), "Should have exactly 1 visible tool result");
         assertTrue(toolResults.get(0).getToolOutput().contains("github.com-personal"));
     }
 
     // ======================== Cursor Agent Tests ========================
 
     @Test
-    public void cursorAgentConversation_parsesAllTypes() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("cursor-agent-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void cursorAgentConversation_parsesAllTypes() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("cursor-agent-conversation.jsonl", CursorLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have system", cats.contains("system"));
-        assertTrue("Should have thinking", cats.contains("thinking"));
-        assertTrue("Should have assistant", cats.contains("assistant"));
-        assertTrue("Should have tool_call", cats.contains("tool_call"));
-        assertTrue("Should have tool_result", cats.contains("tool_result"));
+        assertTrue(cats.contains("system"), "Should have system");
+        assertTrue(cats.contains("thinking"), "Should have thinking");
+        assertTrue(cats.contains("assistant"), "Should have assistant");
+        assertTrue(cats.contains("tool_call"), "Should have tool_call");
+        assertTrue(cats.contains("tool_result"), "Should have tool_result");
     }
 
     @Test
-    public void cursorAgentConversation_detectsShellAndReadTools() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("cursor-agent-conversation.jsonl");
+    void cursorAgentConversation_detectsShellAndReadTools() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("cursor-agent-conversation.jsonl", CursorLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> toolCalls =
                 events.stream()
                         .filter(e -> "tool_call".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertTrue("Should have at least 2 tool calls", toolCalls.size() >= 2);
+        assertTrue(toolCalls.size() >= 2, "Should have at least 2 tool calls");
         boolean hasShell =
                 toolCalls.stream().anyMatch(e -> e.getSummary().toLowerCase().contains("shell"));
         boolean hasRead =
                 toolCalls.stream().anyMatch(e -> e.getSummary().toLowerCase().contains("read"));
-        assertTrue("Should detect shell tool", hasShell);
-        assertTrue("Should detect read tool", hasRead);
+        assertTrue(hasShell, "Should detect shell tool");
+        assertTrue(hasRead, "Should detect read tool");
     }
 
     // ======================== Gemini CLI Tests ========================
 
     @Test
-    public void geminiCliConversation_parsesCurrentTranscriptShape() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("gemini-cli-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void geminiCliConversation_parsesCurrentTranscriptShape() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("gemini-cli-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have system", cats.contains("system"));
-        assertTrue("Should have assistant", cats.contains("assistant"));
-        assertTrue("Should have tool_call", cats.contains("tool_call"));
-        assertTrue("Should have user prompt", cats.contains("user"));
-        assertFalse("Empty Gemini tool results should stay hidden", cats.contains("tool_result"));
-        assertFalse("Stats-only Gemini result event should stay hidden", cats.contains("result"));
-        assertEquals("Current Gemini fixture should keep 5 visible events", 5, events.size());
+        assertTrue(cats.contains("system"), "Should have system");
+        assertTrue(cats.contains("assistant"), "Should have assistant");
+        assertTrue(cats.contains("tool_call"), "Should have tool_call");
+        assertTrue(cats.contains("user"), "Should have user prompt");
+        assertFalse(cats.contains("tool_result"), "Empty Gemini tool results should stay hidden");
+        assertFalse(cats.contains("result"), "Stats-only Gemini result event should stay hidden");
+        assertEquals(5, events.size(), "Current Gemini fixture should keep 5 visible events");
         long assistantCount =
                 events.stream().filter(e -> "assistant".equals(e.getCategory())).count();
-        assertEquals("Gemini deltas should merge into one assistant message", 1, assistantCount);
+        assertEquals(1, assistantCount, "Gemini deltas should merge into one assistant message");
         AiAgentLogParser.EventView assistant =
                 events.stream()
                         .filter(e -> "assistant".equals(e.getCategory()))
                         .findFirst()
                         .orElseThrow(() -> new AssertionError("Missing assistant event"));
         assertTrue(
-                "Merged assistant message should contain both delta fragments",
-                assistant.getContent().contains("Jenkins AI Agent Plugin"));
+                assistant.getContent().contains("Jenkins AI Agent Plugin"),
+                "Merged assistant message should contain both delta fragments");
         assertTrue(
-                "Merged assistant message should contain later delta fragments",
-                assistant.getContent().contains("approval gates"));
+                assistant.getContent().contains("approval gates"),
+                "Merged assistant message should contain later delta fragments");
     }
 
     @Test
-    public void geminiCliConversation_showsFileInputsAndHidesEmptyResults() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("gemini-cli-conversation.jsonl");
+    void geminiCliConversation_showsFileInputsAndHidesEmptyResults() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("gemini-cli-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
         List<AiAgentLogParser.EventView> toolCalls =
                 events.stream()
                         .filter(e -> "tool_call".equals(e.getCategory()))
                         .collect(Collectors.toList());
 
-        assertEquals("Should have 2 tool calls", 2, toolCalls.size());
+        assertEquals(2, toolCalls.size(), "Should have 2 tool calls");
         assertTrue(
-                "Gemini tool calls should show extracted input",
-                toolCalls.stream().allMatch(e -> !e.getToolInput().isEmpty()));
+                toolCalls.stream().allMatch(e -> !e.getToolInput().isEmpty()),
+                "Gemini tool calls should show extracted input");
         assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().endsWith("/README.md")));
         assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().endsWith("/pom.xml")));
         assertEquals(
-                "Empty Gemini tool_result entries should be hidden",
                 0,
-                events.stream().filter(e -> "tool_result".equals(e.getCategory())).count());
+                events.stream().filter(e -> "tool_result".equals(e.getCategory())).count(),
+                "Empty Gemini tool_result entries should be hidden");
     }
 
     // ======================== OpenCode Tests ========================
 
     @Test
-    public void openCodeConversation_parsesCurrentTranscriptShape() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("opencode-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void openCodeConversation_parsesCurrentTranscriptShape() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("opencode-conversation.jsonl", OpenCodeLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<String> cats = categories(events);
-        assertTrue("Should have assistant", cats.contains("assistant"));
-        assertTrue("Should have tool_result", cats.contains("tool_result"));
-        assertFalse("Step markers should stay hidden", cats.contains("system"));
+        assertTrue(cats.contains("assistant"), "Should have assistant");
+        assertTrue(cats.contains("tool_result"), "Should have tool_result");
+        assertFalse(cats.contains("system"), "Step markers should stay hidden");
         assertFalse(
-                "Completed tool parts should render as results, not calls",
-                cats.contains("tool_call"));
-        assertEquals("Current OpenCode fixture should keep 3 visible events", 3, events.size());
+                cats.contains("tool_call"),
+                "Completed tool parts should render as results, not calls");
+        assertEquals(3, events.size(), "Current OpenCode fixture should keep 3 visible events");
     }
 
     @Test
-    public void openCodeConversation_showsToolOutputsAndAssistantText() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("opencode-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+    void openCodeConversation_showsToolOutputsAndAssistantText() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("opencode-conversation.jsonl", OpenCodeLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
 
         List<AiAgentLogParser.EventView> toolResults =
                 events.stream()
                         .filter(e -> "tool_result".equals(e.getCategory()))
                         .collect(Collectors.toList());
-        assertEquals("Should have 2 completed tool results", 2, toolResults.size());
+        assertEquals(2, toolResults.size(), "Should have 2 completed tool results");
         assertTrue(
-                "OpenCode tool results should show nested state output",
-                toolResults.stream().allMatch(e -> !e.getToolOutput().isEmpty()));
+                toolResults.stream().allMatch(e -> !e.getToolOutput().isEmpty()),
+                "OpenCode tool results should show nested state output");
 
         AiAgentLogParser.EventView assistant =
                 events.stream()
@@ -284,61 +308,64 @@ public class AiAgentLogParserTest {
     // ======================== Error Handling Tests ========================
 
     @Test
-    public void errorConversation_detectsErrors() throws IOException {
+    void errorConversation_detectsErrors() throws IOException {
         List<AiAgentLogParser.EventView> events = parseFixture("error-conversation.jsonl");
-        assertFalse("Should have events", events.isEmpty());
+        assertFalse(events.isEmpty(), "Should have events");
 
         boolean hasSystem = events.stream().anyMatch(e -> "system".equals(e.getCategory()));
-        assertTrue("Should have system/result events", hasSystem);
+        assertTrue(hasSystem, "Should have system/result events");
     }
 
     // ======================== Edge Case Tests ========================
 
     @Test
-    public void parseLine_handlesEmptyString() {
+    void parseLine_handlesEmptyString() {
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, "");
         assertEquals("raw", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesNull() {
+    void parseLine_handlesNull() {
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, null);
         assertEquals("raw", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesPlainText() {
+    void parseLine_handlesPlainText() {
         AiAgentLogParser.ParsedLine line =
                 AiAgentLogParser.parseLine(1, "This is just plain text output");
         assertEquals("raw", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesInvalidJson() {
+    void parseLine_handlesInvalidJson() {
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, "{invalid json}");
         assertEquals("raw", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesJsonArray() {
+    void parseLine_handlesJsonArray() {
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, "[1,2,3]");
         assertEquals("raw", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesMinimalThinkingEvent() {
+    void parseLine_handlesMinimalThinkingEvent() {
         AiAgentLogParser.ParsedLine line =
                 AiAgentLogParser.parseLine(
-                        1, "{\"type\":\"thinking\",\"text\":\"analyzing the problem\"}");
+                        1,
+                        "{\"type\":\"thinking\",\"text\":\"analyzing the problem\"}",
+                        CursorLogFormat.INSTANCE);
         assertEquals("thinking", line.toEventView().getCategory());
         assertTrue(line.toEventView().getSummary().contains("analyzing"));
     }
 
     @Test
-    public void parseLine_handlesToolCallWithNestedInput() {
+    void parseLine_handlesToolCallWithNestedInput() {
         String json =
                 "{\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"tu1\",\"name\":\"Bash\",\"input\":{\"command\":\"echo hello\"}}]}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
         assertEquals("tool_call", line.toEventView().getCategory());
         assertTrue(line.isToolCall());
         assertEquals("tu1", line.getToolCallIdOrGenerated());
@@ -346,70 +373,80 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_handlesClaudeUserToolResult() {
+    void parseLine_handlesClaudeUserToolResult() {
         String json =
                 "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu1\",\"content\":\"total 24\\nREADME.md\",\"is_error\":false}]}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
         assertEquals("tool_result", line.toEventView().getCategory());
         assertEquals("total 24\nREADME.md", line.toEventView().getToolOutput());
         assertEquals("tu1", line.getToolCallIdOrGenerated());
     }
 
     @Test
-    public void parseLine_skipsEmptyClaudeUserToolResultWrapper() {
+    void parseLine_skipsEmptyClaudeUserToolResultWrapper() {
         String json =
                 "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"tu1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"Read\"}],\"is_error\":false}]}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
-        assertTrue("Empty tool_result wrapper should be ignored", line.toEventView().isEmpty());
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
+        assertTrue(line.toEventView().isEmpty(), "Empty tool_result wrapper should be ignored");
     }
 
     @Test
-    public void parseLine_handlesCodexReasoningItem() {
+    void parseLine_handlesCodexReasoningItem() {
         String json =
                 "{\"type\":\"item.started\",\"item\":{\"id\":\"r1\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"text\":\"thinking deeply\"}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CodexLogFormat.INSTANCE);
         assertEquals("thinking", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesCodexCommandExecution() {
+    void parseLine_handlesCodexCommandExecution() {
         String json =
                 "{\"type\":\"item.started\",\"item\":{\"id\":\"cmd1\",\"type\":\"command_execution\",\"status\":\"in_progress\",\"command\":\"ls -la\"}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CodexLogFormat.INSTANCE);
         assertEquals("tool_call", line.toEventView().getCategory());
         assertTrue(line.isToolCall());
         assertEquals("ls -la", line.toEventView().getToolInput());
     }
 
     @Test
-    public void parseLine_handlesCodexCommandExecutionCompletedWithAggregatedOutput() {
+    void parseLine_handlesCodexCommandExecutionCompletedWithAggregatedOutput() {
         String json =
                 "{\"type\":\"item.completed\",\"item\":{\"id\":\"cmd1\",\"type\":\"command_execution\",\"status\":\"completed\",\"command\":\"ls -la\",\"aggregated_output\":\"README.md\\npom.xml\"}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CodexLogFormat.INSTANCE);
         assertEquals("tool_result", line.toEventView().getCategory());
         assertEquals("README.md\npom.xml", line.toEventView().getToolOutput());
     }
 
     @Test
-    public void parseLine_skipsCodexStructuralEventsWithoutDisplayableText() {
+    void parseLine_skipsCodexStructuralEventsWithoutDisplayableText() {
         AiAgentLogParser.ParsedLine threadStarted =
-                AiAgentLogParser.parseLine(1, "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}");
+                AiAgentLogParser.parseLine(
+                        1,
+                        "{\"type\":\"thread.started\",\"thread_id\":\"t1\"}",
+                        CodexLogFormat.INSTANCE);
         AiAgentLogParser.ParsedLine turnStarted =
-                AiAgentLogParser.parseLine(2, "{\"type\":\"turn.started\"}");
+                AiAgentLogParser.parseLine(
+                        2, "{\"type\":\"turn.started\"}", CodexLogFormat.INSTANCE);
         assertTrue(threadStarted.toEventView().isEmpty());
         assertTrue(turnStarted.toEventView().isEmpty());
     }
 
     @Test
-    public void parseLine_skipsEmptyCodexAgentMessage() {
+    void parseLine_skipsEmptyCodexAgentMessage() {
         String json =
                 "{\"type\":\"item.started\",\"item\":{\"id\":\"msg1\",\"type\":\"agent_message\",\"status\":\"in_progress\",\"text\":\"\"}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CodexLogFormat.INSTANCE);
         assertTrue(line.toEventView().isEmpty());
     }
 
     @Test
-    public void parseLine_handlesGeminiToolUseWithParameters() {
+    void parseLine_handlesGeminiToolUseWithParameters() {
         String json =
                 "{\"type\":\"tool_use\",\"tool_name\":\"read_file\",\"tool_id\":\"tool-1\",\"parameters\":{\"file_path\":\"/tmp/README.md\"}}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -419,7 +456,7 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_skipsEmptyGeminiToolResult() {
+    void parseLine_skipsEmptyGeminiToolResult() {
         String json =
                 "{\"type\":\"tool_result\",\"tool_id\":\"tool-1\",\"status\":\"success\",\"output\":\"\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -427,7 +464,7 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_handlesGeminiInitWithModel() {
+    void parseLine_handlesGeminiInitWithModel() {
         String json =
                 "{\"type\":\"init\",\"timestamp\":\"2026-03-07T03:24:37.343Z\",\"session_id\":\"s1\",\"model\":\"gemini-3.1-pro-preview\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -436,44 +473,48 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_handlesOpenCodeToolPartWithCompletedOutput() {
+    void parseLine_handlesOpenCodeToolPartWithCompletedOutput() {
         String json =
                 "{\"type\":\"tool_use\",\"part\":{\"type\":\"tool\",\"callID\":\"call_1\",\"tool\":\"glob\",\"state\":{\"status\":\"completed\",\"input\":{\"pattern\":\"*\"},\"output\":\"/tmp/a\\n/tmp/b\"}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, OpenCodeLogFormat.INSTANCE);
         assertEquals("tool_result", line.toEventView().getCategory());
         assertEquals("/tmp/a\n/tmp/b", line.toEventView().getToolOutput());
         assertEquals("call_1", line.getToolCallIdOrGenerated());
     }
 
     @Test
-    public void parseLine_handlesOpenCodeTextPartAsAssistantMessage() {
+    void parseLine_handlesOpenCodeTextPartAsAssistantMessage() {
         String json =
                 "{\"type\":\"text\",\"part\":{\"type\":\"text\",\"text\":\"This is a Jenkins plugin.\"}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, OpenCodeLogFormat.INSTANCE);
         assertEquals("assistant", line.toEventView().getCategory());
         assertEquals("This is a Jenkins plugin.", line.toEventView().getContent());
     }
 
     @Test
-    public void parseLine_handlesCursorToolCallStarted() {
+    void parseLine_handlesCursorToolCallStarted() {
         String json =
                 "{\"type\":\"tool_call\",\"subtype\":\"started\",\"call_id\":\"c1\",\"tool_call\":{\"shellToolCall\":{\"args\":{\"command\":\"ls\"}}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CursorLogFormat.INSTANCE);
         assertEquals("tool_call", line.toEventView().getCategory());
         assertTrue(line.isToolCall());
         assertEquals("c1", line.getToolCallIdOrGenerated());
     }
 
     @Test
-    public void parseLine_handlesCursorToolCallCompleted() {
+    void parseLine_handlesCursorToolCallCompleted() {
         String json =
                 "{\"type\":\"tool_call\",\"subtype\":\"completed\",\"call_id\":\"c1\",\"tool_call\":{\"shellToolCall\":{\"args\":{\"command\":\"ls\"},\"result\":{\"success\":{\"stdout\":\"file.txt\",\"exitCode\":0}}}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, CursorLogFormat.INSTANCE);
         assertEquals("tool_result", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesClaudeSystemInit() {
+    void parseLine_handlesClaudeSystemInit() {
         String json =
                 "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s1\",\"model\":\"claude-sonnet-4\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -482,7 +523,7 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_skipsEmptyResultWithoutDisplayText() {
+    void parseLine_skipsEmptyResultWithoutDisplayText() {
         String json =
                 "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":5000}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -490,7 +531,7 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_handlesResultWithDisplayText() {
+    void parseLine_handlesResultWithDisplayText() {
         String json =
                 "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":5000,\"result\":\"Build completed successfully.\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
@@ -501,46 +542,50 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parseLine_handlesStreamEventMessageStart() {
+    void parseLine_handlesStreamEventMessageStart() {
         String json =
                 "{\"type\":\"stream_event\",\"event\":{\"type\":\"message_start\",\"message\":{\"id\":\"m1\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4\",\"content\":[]}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
         assertEquals("system", line.toEventView().getCategory());
         assertTrue(line.toEventView().getSummary().contains("claude-sonnet-4"));
     }
 
     @Test
-    public void parseLine_handlesStreamEventThinkingDelta() {
+    void parseLine_handlesStreamEventThinkingDelta() {
         String json =
                 "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"considering options\"}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
         assertEquals("thinking", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesStreamEventTextDelta() {
+    void parseLine_handlesStreamEventTextDelta() {
         String json =
                 "{\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Here is the result.\"}}}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, ClaudeCodeLogFormat.INSTANCE);
         assertEquals("assistant", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_handlesErrorWithErrorField() {
+    void parseLine_handlesErrorWithErrorField() {
         String json = "{\"type\":\"error\",\"error\":\"Rate limit exceeded\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
         assertEquals("error", line.toEventView().getCategory());
     }
 
     @Test
-    public void parseLine_generatesToolCallIdWhenMissing() {
+    void parseLine_generatesToolCallIdWhenMissing() {
         String json = "{\"type\":\"tool_call\",\"tool_name\":\"bash\",\"text\":\"ls\"}";
-        AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(42, json);
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(42, json, CursorLogFormat.INSTANCE);
         assertEquals("tool-call-42", line.getToolCallIdOrGenerated());
     }
 
     @Test
-    public void eventView_categoryLabelsAreReadable() {
+    void eventView_categoryLabelsAreReadable() {
         AiAgentLogParser.EventView view =
                 new AiAgentLogParser.EventView(
                         1,
@@ -556,7 +601,7 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void eventView_inlineContentForAssistantAndResult() {
+    void eventView_inlineContentForAssistantAndResult() {
         AiAgentLogParser.EventView error =
                 new AiAgentLogParser.EventView(
                         1,
@@ -591,13 +636,13 @@ public class AiAgentLogParserTest {
     }
 
     @Test
-    public void parse_returnsEmptyForNullFile() throws IOException {
+    void parse_returnsEmptyForNullFile() throws IOException {
         List<AiAgentLogParser.EventView> events = AiAgentLogParser.parse(null);
         assertTrue(events.isEmpty());
     }
 
     @Test
-    public void parse_returnsEmptyForNonexistentFile() throws IOException {
+    void parse_returnsEmptyForNonexistentFile() throws IOException {
         List<AiAgentLogParser.EventView> events =
                 AiAgentLogParser.parse(new File("/nonexistent/path.jsonl"));
         assertTrue(events.isEmpty());
@@ -607,39 +652,44 @@ public class AiAgentLogParserTest {
     // ========================
 
     @Test
-    public void claudeCodeConversation_hasCorrectEventCount() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("claude-code-conversation.jsonl");
-        assertTrue("Should have at least 5 events for a full conversation", events.size() >= 5);
+    void claudeCodeConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("claude-code-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
+        assertTrue(events.size() >= 5, "Should have at least 5 events for a full conversation");
     }
 
     @Test
-    public void codexConversation_hasCorrectEventCount() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("codex-conversation.jsonl");
-        assertEquals("Current Codex fixture should produce 6 visible events", 6, events.size());
+    void codexConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("codex-conversation.jsonl", CodexLogFormat.INSTANCE);
+        assertEquals(6, events.size(), "Current Codex fixture should produce 6 visible events");
     }
 
     @Test
-    public void cursorConversation_hasCorrectEventCount() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("cursor-agent-conversation.jsonl");
-        assertTrue("Should have at least 6 events", events.size() >= 6);
+    void cursorConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("cursor-agent-conversation.jsonl", CursorLogFormat.INSTANCE);
+        assertTrue(events.size() >= 6, "Should have at least 6 events");
     }
 
     @Test
-    public void geminiConversation_hasCorrectEventCount() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("gemini-cli-conversation.jsonl");
-        assertEquals("Current Gemini fixture should produce 5 visible events", 5, events.size());
+    void geminiConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("gemini-cli-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
+        assertEquals(5, events.size(), "Current Gemini fixture should produce 5 visible events");
     }
 
     @Test
-    public void openCodeConversation_hasCorrectEventCount() throws IOException {
-        List<AiAgentLogParser.EventView> events = parseFixture("opencode-conversation.jsonl");
-        assertEquals("Current OpenCode fixture should produce 3 visible events", 3, events.size());
+    void openCodeConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("opencode-conversation.jsonl", OpenCodeLogFormat.INSTANCE);
+        assertEquals(3, events.size(), "Current OpenCode fixture should produce 3 visible events");
     }
 
     // ======================== Markdown rendering ========================
 
     @Test
-    public void contentHtml_convertsBasicMarkdown() {
+    void contentHtml_convertsBasicMarkdown() {
         AiAgentLogParser.EventView ev =
                 new AiAgentLogParser.EventView(
                         1,
@@ -652,69 +702,69 @@ public class AiAgentLogParserTest {
                         java.time.Instant.now(),
                         false);
         String html = ev.getContentHtml();
-        assertTrue("Should contain <strong>", html.contains("<strong>world</strong>"));
+        assertTrue(html.contains("<strong>world</strong>"), "Should contain <strong>");
     }
 
     @Test
-    public void contentHtml_convertsCodeBlocks() {
+    void contentHtml_convertsCodeBlocks() {
         String md = "Here:\n```\nfoo()\n```\nDone.";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
-        assertTrue("Should contain <pre><code>", html.contains("<pre><code>"));
-        assertTrue("Should contain foo()", html.contains("foo()"));
+        assertTrue(html.contains("<pre><code>"), "Should contain <pre><code>");
+        assertTrue(html.contains("foo()"), "Should contain foo()");
     }
 
     @Test
-    public void contentHtml_convertsBulletLists() {
+    void contentHtml_convertsBulletLists() {
         String md = "Items:\n- one\n- two\n- three";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
-        assertTrue("Should contain <ul>", html.contains("<ul>"));
-        assertTrue("Should contain <li>one</li>", html.contains("<li>one</li>"));
+        assertTrue(html.contains("<ul>"), "Should contain <ul>");
+        assertTrue(html.contains("<li>one</li>"), "Should contain <li>one</li>");
     }
 
     @Test
-    public void contentHtml_convertsHeaders() {
+    void contentHtml_convertsHeaders() {
         String md = "# Title\n## Subtitle";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
-        assertTrue("Should contain strong for title", html.contains("<strong>Title</strong>"));
+        assertTrue(html.contains("<strong>Title</strong>"), "Should contain strong for title");
         assertTrue(
-                "Should contain strong for subtitle", html.contains("<strong>Subtitle</strong>"));
+                html.contains("<strong>Subtitle</strong>"), "Should contain strong for subtitle");
     }
 
     @Test
-    public void contentHtml_escapesHtmlInContent() {
+    void contentHtml_escapesHtmlInContent() {
         String md = "Use <div> tags & \"quotes\"";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
-        assertTrue("Should escape <", html.contains("&lt;div&gt;"));
-        assertTrue("Should escape &", html.contains("&amp;"));
+        assertTrue(html.contains("&lt;div&gt;"), "Should escape <");
+        assertTrue(html.contains("&amp;"), "Should escape &");
     }
 
     @Test
-    public void contentHtml_handlesEmptyString() {
+    void contentHtml_handlesEmptyString() {
         assertEquals("", AiAgentLogParser.EventView.markdownToHtml(""));
         assertEquals("", AiAgentLogParser.EventView.markdownToHtml(null));
     }
 
     @Test
-    public void contentHtml_convertsInlineCode() {
+    void contentHtml_convertsInlineCode() {
         String md = "Run `echo hello` now";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
-        assertTrue("Should contain <code>", html.contains("<code>echo hello</code>"));
+        assertTrue(html.contains("<code>echo hello</code>"), "Should contain <code>");
     }
 
     @Test
-    public void contentHtml_escapesHtmlInsideInlineCode() {
+    void contentHtml_escapesHtmlInsideInlineCode() {
         String md = "Run `<img src=x onerror=alert(1)>` now";
         String html = AiAgentLogParser.EventView.markdownToHtml(md);
         assertTrue(
-                "Inline code should remain escaped",
-                html.contains("<code>&lt;img src=x onerror=alert(1)&gt;</code>"));
-        assertFalse("Rendered markdown should not reintroduce raw HTML", html.contains("<img"));
+                html.contains("<code>&lt;img src=x onerror=alert(1)&gt;</code>"),
+                "Inline code should remain escaped");
+        assertFalse(html.contains("<img"), "Rendered markdown should not reintroduce raw HTML");
     }
 
     // ======================== Result deduplication ========================
 
     @Test
-    public void parse_deduplicatesResultThatRepeatsAssistant() throws IOException {
+    void parse_deduplicatesResultThatRepeatsAssistant() throws IOException {
         File temp = File.createTempFile("dedup-", ".jsonl");
         temp.deleteOnExit();
         java.nio.file.Files.write(
@@ -731,7 +781,7 @@ public class AiAgentLogParserTest {
                         .filter(e -> "assistant".equals(e.getCategory()))
                         .findFirst()
                         .orElse(null);
-        assertNotNull("Should have assistant event", assistant);
+        assertNotNull(assistant, "Should have assistant event");
         assertEquals("The answer is 42.", assistant.getContent());
 
         AiAgentLogParser.EventView result =
@@ -739,12 +789,12 @@ public class AiAgentLogParserTest {
                         .filter(e -> "result".equals(e.getCategory()))
                         .findFirst()
                         .orElse(null);
-        assertNotNull("Should have result event", result);
-        assertTrue("Result content should be empty (deduplicated)", result.getContent().isEmpty());
+        assertNotNull(result, "Should have result event");
+        assertTrue(result.getContent().isEmpty(), "Result content should be empty (deduplicated)");
     }
 
     @Test
-    public void parse_keepsResultWhenDifferentFromAssistant() throws IOException {
+    void parse_keepsResultWhenDifferentFromAssistant() throws IOException {
         File temp = File.createTempFile("nodedup-", ".jsonl");
         temp.deleteOnExit();
         java.nio.file.Files.write(
@@ -761,7 +811,7 @@ public class AiAgentLogParserTest {
                         .filter(e -> "result".equals(e.getCategory()))
                         .findFirst()
                         .orElse(null);
-        assertNotNull("Should have result event", result);
+        assertNotNull(result, "Should have result event");
         assertEquals("Completely different result.", result.getContent());
     }
 }

@@ -1,15 +1,17 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.FreeStyleProject;
 
-import org.junit.Rule;
-import org.junit.Test;
+import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
+
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,11 +20,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
-public class AiAgentBuilderConfigRoundTripTest {
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class AiAgentBuilderConfigRoundTripTest {
 
     @Test
-    public void preservesConfiguredFields() throws Exception {
+    void preservesConfiguredFields(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject("ai-config-roundtrip");
         AiAgentBuilder builder = new AiAgentBuilder();
         builder.setAgent(new GeminiCliAgentHandler());
@@ -40,7 +42,7 @@ public class AiAgentBuilderConfigRoundTripTest {
         project.getBuildersList().add(builder);
         project.save();
 
-        jenkins.configRoundtrip(project);
+        project = jenkins.configRoundtrip(project);
 
         AiAgentBuilder reloaded = (AiAgentBuilder) project.getBuildersList().get(0);
         assertEquals("GEMINI_CLI", reloaded.getAgent().getId());
@@ -60,45 +62,45 @@ public class AiAgentBuilderConfigRoundTripTest {
     }
 
     @Test
-    public void commandOverride_normalizesWrappedLineBreaks() {
+    void commandOverride_normalizesWrappedLineBreaks() {
         AiAgentBuilder builder = new AiAgentBuilder();
         builder.setCommandOverride("/opt/opencode\n  --model gpt-5\n  --json");
         assertEquals("/opt/opencode --model gpt-5 --json", builder.getCommandOverride());
     }
 
     @Test
-    public void configJelly_usesDescriptorSelectorWithoutInlineScripts() throws Exception {
+    void configJelly_usesDescriptorSelectorWithoutInlineScripts() throws Exception {
         String jelly = readResource("/io/jenkins/plugins/aiagentjob/AiAgentBuilder/config.jelly");
         assertTrue(
-                "config.jelly should use descriptor selector",
                 jelly.contains(
-                        "<f:dropdownDescriptorSelector title=\"Agent Type\" field=\"agent\" descriptors=\"${descriptor.agentDescriptors}\" />"));
-        assertTrue("command override should use textbox", jelly.contains("<f:textbox />"));
+                        "<f:dropdownDescriptorSelector title=\"Agent Type\" field=\"agent\" descriptors=\"${descriptor.agentDescriptors}\" />"),
+                "config.jelly should use descriptor selector");
+        assertTrue(jelly.contains("<f:textbox />"), "command override should use textbox");
         assertFalse(
-                "command override should not use expandableTextbox",
-                jelly.contains("<f:expandableTextbox"));
-        assertFalse("config.jelly should not contain inline style tags", jelly.contains("<style"));
+                jelly.contains("<f:expandableTextbox"),
+                "command override should not use expandableTextbox");
+        assertFalse(jelly.contains("<style"), "config.jelly should not contain inline style tags");
         assertFalse(
-                "config.jelly should not contain inline script tags", jelly.contains("<script"));
+                jelly.contains("<script"), "config.jelly should not contain inline script tags");
         assertFalse(
-                "config.jelly should not contain inline style attributes",
                 jelly.contains(" style=")
                         || jelly.contains("style=\"")
-                        || jelly.contains("style='"));
+                        || jelly.contains("style='"),
+                "config.jelly should not contain inline style attributes");
     }
 
     @Test
-    public void codexHandlerConfigJelly_exists() {
+    void codexHandlerConfigJelly_exists() {
         assertNotNull(
-                "codex handler config resource should exist",
                 getClass()
                         .getResource(
-                                "/io/jenkins/plugins/aiagentjob/CodexAgentHandler/config.jelly"));
+                                "/io/jenkins/plugins/aiagentjob/codex/CodexAgentHandler/config.jelly"),
+                "codex handler config resource should exist");
     }
 
     private String readResource(String path) throws IOException {
         try (InputStream in = getClass().getResourceAsStream(path)) {
-            assertNotNull("Resource should exist: " + path, in);
+            assertNotNull(in, "Resource should exist: " + path);
             try (BufferedReader reader =
                     new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
                 return reader.lines().collect(Collectors.joining("\n"));

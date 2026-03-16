@@ -1,26 +1,28 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.security.csrf.DefaultCrumbIssuer;
 
+import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
+
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import org.htmlunit.html.HtmlPage;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -28,11 +30,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** Tests for {@link AiAgentRunAction} metadata, getters, and progressive event API. */
-public class AiAgentRunActionTest {
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class AiAgentRunActionTest {
 
     private FreeStyleProject newProject(
-            String name, java.util.function.Consumer<AiAgentBuilder> cfg) throws Exception {
+            JenkinsRule jenkins, String name, java.util.function.Consumer<AiAgentBuilder> cfg)
+            throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject(name);
         AiAgentBuilder builder = new AiAgentBuilder();
         cfg.accept(builder);
@@ -42,11 +45,11 @@ public class AiAgentRunActionTest {
     }
 
     @Test
-    public void getOrCreate_returnsSameInstance() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void getOrCreate_returnsSameInstance(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-getorcreate",
                         b -> b.setCommandOverride("echo '{\"type\":\"system\"}'"));
 
@@ -54,15 +57,15 @@ public class AiAgentRunActionTest {
         AiAgentRunAction first = build.getAction(AiAgentRunAction.class);
         AiAgentRunAction second = AiAgentRunAction.getOrCreate(build);
         assertNotNull(first);
-        assertEquals("getOrCreate should return existing action", first, second);
+        assertEquals(first, second, "getOrCreate should return existing action");
     }
 
     @Test
-    public void actionProperties_afterCompletion() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void actionProperties_afterCompletion(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-props",
                         b -> {
                             b.setAgent(new GeminiCliAgentHandler());
@@ -88,15 +91,15 @@ public class AiAgentRunActionTest {
         assertFalse(action.isLive());
         assertEquals("AI Agent Conversation", action.getDisplayName());
         assertEquals("ai-agent", action.getUrlName());
-        assertNull("No sidebar icon", action.getIconFileName());
+        assertNull(action.getIconFileName(), "No sidebar icon");
     }
 
     @Test
-    public void pendingApprovals_emptyAfterCompletion() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void pendingApprovals_emptyAfterCompletion(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-approvals",
                         b -> b.setCommandOverride("echo '{\"type\":\"system\"}'"));
 
@@ -107,12 +110,11 @@ public class AiAgentRunActionTest {
     }
 
     @Test
-    public void progressiveEvents_returnsJsonWithEvents() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void progressiveEvents_returnsJsonWithEvents(JenkinsRule jenkins) throws Exception {
         String script = buildEchoScript("claude-code-conversation.jsonl");
         FreeStyleProject project =
-                newProject("test-progressive", b -> b.setCommandOverride(script));
+                newProject(jenkins, "test-progressive", b -> b.setCommandOverride(script));
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
 
@@ -124,25 +126,24 @@ public class AiAgentRunActionTest {
         String json = page.getWebResponse().getContentAsString();
 
         JSONObject result = JSONObject.fromObject(json);
-        assertTrue("Should have events array", result.has("events"));
-        assertTrue("Should have nextStart", result.has("nextStart"));
-        assertTrue("Should have live field", result.has("live"));
+        assertTrue(result.has("events"), "Should have events array");
+        assertTrue(result.has("nextStart"), "Should have nextStart");
+        assertTrue(result.has("live"), "Should have live field");
 
         JSONArray events = result.getJSONArray("events");
-        assertTrue("Should have at least one event", events.size() > 0);
+        assertTrue(events.size() > 0, "Should have at least one event");
 
         long nextStart = result.getLong("nextStart");
-        assertTrue("nextStart should be > 0", nextStart > 0);
-        assertFalse("Build should not be live", result.getBoolean("live"));
+        assertTrue(nextStart > 0, "nextStart should be > 0");
+        assertFalse(result.getBoolean("live"), "Build should not be live");
     }
 
     @Test
-    public void progressiveEvents_incrementalFetch() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void progressiveEvents_incrementalFetch(JenkinsRule jenkins) throws Exception {
         String script = buildEchoScript("claude-code-conversation.jsonl");
         FreeStyleProject project =
-                newProject("test-incremental", b -> b.setCommandOverride(script));
+                newProject(jenkins, "test-incremental", b -> b.setCommandOverride(script));
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
 
@@ -154,24 +155,24 @@ public class AiAgentRunActionTest {
         JSONObject result1 = JSONObject.fromObject(json1);
         long nextStart = result1.getLong("nextStart");
         int firstBatch = result1.getJSONArray("events").size();
-        assertTrue("First batch should have events", firstBatch > 0);
+        assertTrue(firstBatch > 0, "First batch should have events");
 
         String url2 = build.getUrl() + "ai-agent/progressiveEvents?start=" + nextStart;
         String json2 = wc.goTo(url2, "application/json").getWebResponse().getContentAsString();
         JSONObject result2 = JSONObject.fromObject(json2);
         assertEquals(
-                "Second fetch should return no new events",
                 0,
-                result2.getJSONArray("events").size());
-        assertEquals("nextStart should be unchanged", nextStart, result2.getLong("nextStart"));
+                result2.getJSONArray("events").size(),
+                "Second fetch should return no new events");
+        assertEquals(nextStart, result2.getLong("nextStart"), "nextStart should be unchanged");
     }
 
     @Test
-    public void rawEndpoint_rendersHtmlWithContent() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void rawEndpoint_rendersHtmlWithContent(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-raw",
                         b ->
                                 b.setCommandOverride(
@@ -185,25 +186,26 @@ public class AiAgentRunActionTest {
         String url = build.getUrl() + "ai-agent/raw";
         org.htmlunit.Page page = wc.goTo(url);
         String content = page.getWebResponse().getContentAsString();
-        assertTrue("Raw page should render preformatted content", content.contains("<pre"));
-        assertTrue("Raw log should contain the event type", content.contains("type"));
-        assertTrue("Raw log should contain the event category", content.contains("system"));
+        assertTrue(content.contains("<pre"), "Raw page should render preformatted content");
+        assertTrue(content.contains("type"), "Raw log should contain the event type");
+        assertTrue(content.contains("system"), "Raw log should contain the event category");
     }
 
     @Test
-    public void events_emptyWhenLogContainsOnlyHiddenBookkeeping() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void events_emptyWhenLogContainsOnlyHiddenBookkeeping(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
-                        "test-no-log", b -> b.setCommandOverride("echo '{\"type\":\"result\"}'"));
+                        jenkins,
+                        "test-no-log",
+                        b -> b.setCommandOverride("echo '{\"type\":\"result\"}'"));
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
         assertNotNull(action);
 
-        File rawLog = action.getRawLogFile();
-        assertTrue("Raw log should exist", rawLog.exists());
+        java.io.File rawLog = action.getRawLogFile();
+        assertTrue(rawLog.exists(), "Raw log should exist");
 
         List<AiAgentLogParser.EventView> events = action.getEvents();
         assertNotNull(events);
@@ -211,58 +213,57 @@ public class AiAgentRunActionTest {
     }
 
     @Test
-    public void summaryJelly_usesExternalResourcesForCspCompliance() throws Exception {
+    void summaryJelly_usesExternalResourcesForCspCompliance() throws Exception {
         String jelly =
                 readResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary.jelly");
         assertTrue(
-                "summary.jelly should load marked for markdown rendering",
                 jelly.contains(
-                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked\""));
+                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked\""),
+                "summary.jelly should load marked for markdown rendering");
         assertTrue(
-                "summary.jelly should load adjunct resources",
                 jelly.contains(
-                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources\""));
-        assertFalse("summary.jelly should not contain inline style tags", jelly.contains("<style"));
+                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources\""),
+                "summary.jelly should load adjunct resources");
+        assertFalse(jelly.contains("<style"), "summary.jelly should not contain inline style tags");
         assertFalse(
-                "summary.jelly should not contain inline script tags", jelly.contains("<script"));
+                jelly.contains("<script"), "summary.jelly should not contain inline script tags");
         assertFalse(
-                "summary.jelly should not contain inline style attributes",
                 jelly.contains(" style=")
                         || jelly.contains("style=\"")
-                        || jelly.contains("style='"));
+                        || jelly.contains("style='"),
+                "summary.jelly should not contain inline style attributes");
     }
 
     @Test
-    public void summaryResources_exist() throws Exception {
+    void summaryResources_exist() {
         assertNotNull(
-                "summary CSS resource should exist",
                 getClass()
                         .getResource(
-                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.css"));
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.css"),
+                "summary CSS resource should exist");
         assertNotNull(
-                "summary JS resource should exist",
                 getClass()
                         .getResource(
-                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.js"));
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.js"),
+                "summary JS resource should exist");
         assertNotNull(
-                "marked JS resource should exist",
-                getClass()
-                        .getResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/marked.js"));
+                getClass().getResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/marked.js"),
+                "marked JS resource should exist");
         assertNotNull(
-                "conversation jelly resource should exist",
                 getClass()
                         .getResource(
-                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/conversation.jelly"));
+                                "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/conversation.jelly"),
+                "conversation jelly resource should exist");
     }
 
     @Test
-    public void progressiveEvents_returnsCrumbWhenIssuerConfigured() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void progressiveEvents_returnsCrumbWhenIssuerConfigured(JenkinsRule jenkins) throws Exception {
         jenkins.jenkins.setCrumbIssuer(new DefaultCrumbIssuer(true));
 
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-progressive-crumb",
                         b ->
                                 b.setCommandOverride(
@@ -277,19 +278,20 @@ public class AiAgentRunActionTest {
         JSONObject json = JSONObject.fromObject(body);
 
         assertEquals(
-                "Crumb request field should be exposed to the live view",
                 jenkins.jenkins.getCrumbIssuer().getCrumbRequestField(),
-                json.getString("crumbRequestField"));
-        assertTrue("Crumb value should be included", json.containsKey("crumb"));
-        assertFalse("Crumb value should not be empty", json.getString("crumb").isEmpty());
+                json.getString("crumbRequestField"),
+                "Crumb request field should be exposed to the live view");
+        assertTrue(json.containsKey("crumb"), "Crumb value should be included");
+        assertFalse(json.getString("crumb").isEmpty(), "Crumb value should not be empty");
     }
 
     @Test
-    public void conversationPage_showsPromptAndFullConversationLinkTarget() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void conversationPage_showsPromptAndFullConversationLinkTarget(JenkinsRule jenkins)
+            throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "test-conversation-page",
                         b -> {
                             b.setPrompt("Explain this repository in detail");
@@ -316,7 +318,7 @@ public class AiAgentRunActionTest {
             List<String> lines = reader.lines().collect(Collectors.toList());
             StringBuilder script = new StringBuilder();
             for (int i = 0; i < lines.size(); i++) {
-                String escaped = lines.get(i).replace("\\", "\\\\").replace("'", "'\\''");
+                String escaped = lines.get(i).replace("\\", "\\\\").replace("'", "'\\'");
                 if (i > 0) {
                     script.append(" && ");
                 }
@@ -328,7 +330,7 @@ public class AiAgentRunActionTest {
 
     private String readResource(String resourcePath) throws Exception {
         try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
-            assertNotNull("Resource should exist: " + resourcePath, is);
+            assertNotNull(is, "Resource should exist: " + resourcePath);
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

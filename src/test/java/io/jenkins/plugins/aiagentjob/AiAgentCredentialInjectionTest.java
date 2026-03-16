@@ -1,9 +1,9 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -13,21 +13,26 @@ import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.util.Secret;
 
-import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
-import org.jvnet.hudson.test.JenkinsRule;
+import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeAgentHandler;
+import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
+import io.jenkins.plugins.aiagentjob.opencode.OpenCodeAgentHandler;
 
-import java.io.File;
+import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-public class AiAgentCredentialInjectionTest {
-    @Rule public JenkinsRule jenkins = new JenkinsRule();
+@WithJenkins
+class AiAgentCredentialInjectionTest {
 
     private FreeStyleProject newProject(
-            String name, java.util.function.Consumer<AiAgentBuilder> cfg) throws Exception {
+            JenkinsRule jenkins, String name, java.util.function.Consumer<AiAgentBuilder> cfg)
+            throws Exception {
         FreeStyleProject project = jenkins.createFreeStyleProject(name);
         AiAgentBuilder builder = new AiAgentBuilder();
         cfg.accept(builder);
@@ -37,9 +42,8 @@ public class AiAgentCredentialInjectionTest {
     }
 
     @Test
-    public void injectsApiKeyFromCredential() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void injectsApiKeyFromCredential(JenkinsRule jenkins) throws Exception {
         // Store a secret text credential
         StringCredentialsImpl cred =
                 new StringCredentialsImpl(
@@ -55,13 +59,12 @@ public class AiAgentCredentialInjectionTest {
         // Create project that echoes back the env var to prove injection
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "credential-inject-test",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("test");
                             b.setApiCredentialsId("test-api-key");
-                            // Command override that outputs the env var value as JSON so it appears
-                            // in the raw log
                             b.setCommandOverride(
                                     "echo \"{\\\"type\\\":\\\"system\\\",\\\"key_set\\\":\\\"$(test -n \\\"$ANTHROPIC_API_KEY\\\" && echo yes || echo no)\\\"}\"");
                             b.setFailOnAgentError(true);
@@ -71,21 +74,18 @@ public class AiAgentCredentialInjectionTest {
         AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
         assertNotNull(action);
 
-        // The raw log should show key_set=yes because we injected the credential
         String rawLog = Files.readString(action.getRawLogFile().toPath(), StandardCharsets.UTF_8);
-        assertTrue("Env var should have been set", rawLog.contains("\"key_set\":\"yes\""));
+        assertTrue(rawLog.contains("\"key_set\":\"yes\""), "Env var should have been set");
 
-        // Build log should mention the injection
         String buildLog = build.getLog();
         assertTrue(
-                "Build log should mention API key injection",
-                buildLog.contains("API key injected as ANTHROPIC_API_KEY"));
+                buildLog.contains("API key injected as ANTHROPIC_API_KEY"),
+                "Build log should mention API key injection");
     }
 
     @Test
-    public void usesCustomEnvVarOverride() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void usesCustomEnvVarOverride(JenkinsRule jenkins) throws Exception {
         StringCredentialsImpl cred =
                 new StringCredentialsImpl(
                         CredentialsScope.GLOBAL,
@@ -99,6 +99,7 @@ public class AiAgentCredentialInjectionTest {
 
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "custom-envvar-test",
                         b -> {
                             b.setAgent(new OpenCodeAgentHandler());
@@ -113,16 +114,16 @@ public class AiAgentCredentialInjectionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String buildLog = build.getLog();
         assertTrue(
-                "Should inject as ANTHROPIC_API_KEY not OPENAI_API_KEY",
-                buildLog.contains("API key injected as ANTHROPIC_API_KEY"));
+                buildLog.contains("API key injected as ANTHROPIC_API_KEY"),
+                "Should inject as ANTHROPIC_API_KEY not OPENAI_API_KEY");
     }
 
     @Test
-    public void warnsWhenCredentialNotFound() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void warnsWhenCredentialNotFound(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "missing-cred-test",
                         b -> {
                             b.setAgent(new GeminiCliAgentHandler());
@@ -135,32 +136,31 @@ public class AiAgentCredentialInjectionTest {
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String buildLog = build.getLog();
         assertTrue(
-                "Build log should warn about missing credential",
-                buildLog.contains("WARNING") && buildLog.contains("not found"));
+                buildLog.contains("WARNING") && buildLog.contains("not found"),
+                "Build log should warn about missing credential");
     }
 
     @Test
-    public void noCredentialNoInjection() throws Exception {
-        Assume.assumeTrue(File.pathSeparatorChar == ':');
-
+    @EnabledOnOs(OS.LINUX)
+    void noCredentialNoInjection(JenkinsRule jenkins) throws Exception {
         FreeStyleProject project =
                 newProject(
+                        jenkins,
                         "no-cred-test",
                         b -> {
                             b.setAgent(new ClaudeCodeAgentHandler());
                             b.setPrompt("test");
-                            // No credential configured
                             b.setCommandOverride("echo '{\"type\":\"system\"}'");
                             b.setFailOnAgentError(true);
                         });
 
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         String buildLog = build.getLog();
-        assertFalse("Should not mention API key injection", buildLog.contains("API key injected"));
+        assertFalse(buildLog.contains("API key injected"), "Should not mention API key injection");
     }
 
     @Test
-    public void effectiveApiKeyEnvVar_defaultsToAgentType() {
+    void effectiveApiKeyEnvVar_defaultsToAgentType() {
         AiAgentBuilder project = new AiAgentBuilder();
         project.setAgent(new ClaudeCodeAgentHandler());
         project.setApiEnvVarName("");
@@ -171,7 +171,7 @@ public class AiAgentCredentialInjectionTest {
     }
 
     @Test
-    public void effectiveApiKeyEnvVar_respectsCustomOverride() {
+    void effectiveApiKeyEnvVar_respectsCustomOverride() {
         AiAgentBuilder project = new AiAgentBuilder();
         project.setAgent(new OpenCodeAgentHandler());
         project.setApiEnvVarName("ANTHROPIC_API_KEY");

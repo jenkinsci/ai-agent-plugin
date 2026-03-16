@@ -1,19 +1,19 @@
 package io.jenkins.plugins.aiagentjob;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
 
-public class ExecutionRegistryTest {
+class ExecutionRegistryTest {
 
     @Test
-    public void pendingApproval_createdWithCorrectFields() {
+    void pendingApproval_createdWithCorrectFields() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         ExecutionRegistry.PendingApproval pending =
                 live.createPendingApproval("tc-1", "bash", "ls -la");
@@ -26,7 +26,7 @@ public class ExecutionRegistryTest {
     }
 
     @Test
-    public void pendingApprovals_listedCorrectly() {
+    void pendingApprovals_listedCorrectly() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         live.createPendingApproval("tc-1", "bash", "ls");
         live.createPendingApproval("tc-2", "read", "file.txt");
@@ -36,7 +36,7 @@ public class ExecutionRegistryTest {
     }
 
     @Test
-    public void approve_resolvesDecision() {
+    void approve_resolvesDecision() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         ExecutionRegistry.PendingApproval pending =
                 live.createPendingApproval("tc-1", "bash", "ls");
@@ -55,11 +55,11 @@ public class ExecutionRegistryTest {
 
         ExecutionRegistry.ApprovalDecision decision =
                 live.awaitDecision(pending, Duration.ofSeconds(5));
-        assertTrue("Should be approved", decision.isApproved());
+        assertTrue(decision.isApproved(), "Should be approved");
     }
 
     @Test
-    public void deny_resolvesDecision() {
+    void deny_resolvesDecision() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         ExecutionRegistry.PendingApproval pending =
                 live.createPendingApproval("tc-1", "bash", "rm -rf /");
@@ -77,27 +77,27 @@ public class ExecutionRegistryTest {
 
         ExecutionRegistry.ApprovalDecision decision =
                 live.awaitDecision(pending, Duration.ofSeconds(5));
-        assertFalse("Should be denied", decision.isApproved());
+        assertFalse(decision.isApproved(), "Should be denied");
         assertEquals("dangerous command", decision.getReason());
     }
 
     @Test
-    public void timeout_deniesDecision() {
+    void timeout_deniesDecision() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         ExecutionRegistry.PendingApproval pending =
                 live.createPendingApproval("tc-1", "bash", "ls");
 
         ExecutionRegistry.ApprovalDecision decision =
                 live.awaitDecision(pending, Duration.ofMillis(100));
-        assertFalse("Should be denied on timeout", decision.isApproved());
+        assertFalse(decision.isApproved(), "Should be denied on timeout");
         assertTrue(
-                "Reason should mention timed out",
                 decision.getReason().toLowerCase().contains("timed out")
-                        || decision.getReason().toLowerCase().contains("timeout"));
+                        || decision.getReason().toLowerCase().contains("timeout"),
+                "Reason should mention timed out");
     }
 
     @Test
-    public void approvalDecision_factoryMethods() {
+    void approvalDecision_factoryMethods() {
         ExecutionRegistry.ApprovalDecision approved = ExecutionRegistry.ApprovalDecision.approved();
         assertTrue(approved.isApproved());
 
@@ -108,13 +108,13 @@ public class ExecutionRegistryTest {
     }
 
     @Test
-    public void approve_returnsFalseForUnknownId() {
+    void approve_returnsFalseForUnknownId() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         assertFalse(live.approve("nonexistent-id"));
     }
 
     @Test
-    public void deny_returnsFalseForUnknownId() {
+    void deny_returnsFalseForUnknownId() {
         ExecutionRegistry.LiveExecution live = new ExecutionRegistry.LiveExecution();
         assertFalse(live.deny("nonexistent-id", "reason"));
     }

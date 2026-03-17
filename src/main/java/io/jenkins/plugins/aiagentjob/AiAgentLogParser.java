@@ -73,17 +73,7 @@ public final class AiAgentLogParser {
                         && !ev.getContent().isEmpty()
                         && !lastAssistantContent.isEmpty()
                         && ev.getContent().contains(lastAssistantContent)) {
-                    ev =
-                            new EventView(
-                                    ev.getId(),
-                                    ev.getCategory(),
-                                    ev.getLabel(),
-                                    "",
-                                    "",
-                                    "",
-                                    ev.getRawDetails(),
-                                    ev.getTimestamp(),
-                                    false);
+                    continue;
                 }
 
                 if (!ev.isEmpty()) {
@@ -186,9 +176,21 @@ public final class AiAgentLogParser {
             String resultText = LogFormatUtils.firstNonEmpty(json, "result", "error");
             boolean isError = json.optBoolean("is_error", false);
             if (resultText.isEmpty()) {
+                String status = LogFormatUtils.firstNonEmpty(json, "status", "subtype");
+                if (!status.isEmpty()) {
+                    resultText = LogFormatUtils.capitalize(status);
+                }
+            }
+            if (resultText.isEmpty()) {
                 return ParsedLine.raw(lineNumber, "");
             }
             String durationMs = LogFormatUtils.firstNonEmpty(json, "duration_ms");
+            if (durationMs.isEmpty()) {
+                JSONObject stats = json.optJSONObject("stats");
+                if (stats != null) {
+                    durationMs = LogFormatUtils.firstNonEmpty(stats, "duration_ms");
+                }
+            }
             String label = isError ? "Error" : "Result";
             String suffix = "";
             if (!durationMs.isEmpty()) {

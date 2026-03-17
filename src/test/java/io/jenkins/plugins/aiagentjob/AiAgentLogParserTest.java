@@ -3,6 +3,7 @@ package io.jenkins.plugins.aiagentjob;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeLogFormat;
@@ -225,8 +226,8 @@ class AiAgentLogParserTest {
         assertTrue(cats.contains("tool_call"), "Should have tool_call");
         assertTrue(cats.contains("user"), "Should have user prompt");
         assertFalse(cats.contains("tool_result"), "Empty Gemini tool results should stay hidden");
-        assertFalse(cats.contains("result"), "Stats-only Gemini result event should stay hidden");
-        assertEquals(5, events.size(), "Current Gemini fixture should keep 5 visible events");
+        assertTrue(cats.contains("result"), "Gemini result event should now show with status text");
+        assertEquals(6, events.size(), "Current Gemini fixture should keep 6 visible events");
         long assistantCount =
                 events.stream().filter(e -> "assistant".equals(e.getCategory())).count();
         assertEquals(1, assistantCount, "Gemini deltas should merge into one assistant message");
@@ -279,7 +280,8 @@ class AiAgentLogParserTest {
         assertFalse(
                 cats.contains("tool_call"),
                 "Completed tool parts should render as results, not calls");
-        assertEquals(3, events.size(), "Current OpenCode fixture should keep 3 visible events");
+        assertTrue(cats.contains("result"), "OpenCode step_finish should produce result event");
+        assertEquals(4, events.size(), "Current OpenCode fixture should keep 4 visible events");
     }
 
     @Test
@@ -524,8 +526,8 @@ class AiAgentLogParserTest {
 
     @Test
     void parseLine_skipsEmptyResultWithoutDisplayText() {
-        String json =
-                "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":5000}";
+        // No result, no error, no status, no subtype → truly empty → raw
+        String json = "{\"type\":\"result\",\"is_error\":false,\"duration_ms\":5000}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);
         assertTrue(line.toEventView().isEmpty());
     }
@@ -676,14 +678,14 @@ class AiAgentLogParserTest {
     void geminiConversation_hasCorrectEventCount() throws IOException {
         List<AiAgentLogParser.EventView> events =
                 parseFixture("gemini-cli-conversation.jsonl", ClaudeCodeLogFormat.INSTANCE);
-        assertEquals(5, events.size(), "Current Gemini fixture should produce 5 visible events");
+        assertEquals(6, events.size(), "Current Gemini fixture should produce 6 visible events");
     }
 
     @Test
     void openCodeConversation_hasCorrectEventCount() throws IOException {
         List<AiAgentLogParser.EventView> events =
                 parseFixture("opencode-conversation.jsonl", OpenCodeLogFormat.INSTANCE);
-        assertEquals(3, events.size(), "Current OpenCode fixture should produce 3 visible events");
+        assertEquals(4, events.size(), "Current OpenCode fixture should produce 4 visible events");
     }
 
     // ======================== Markdown rendering ========================
@@ -789,8 +791,7 @@ class AiAgentLogParserTest {
                         .filter(e -> "result".equals(e.getCategory()))
                         .findFirst()
                         .orElse(null);
-        assertNotNull(result, "Should have result event");
-        assertTrue(result.getContent().isEmpty(), "Result content should be empty (deduplicated)");
+        assertNull(result, "Deduped result should be fully skipped");
     }
 
     @Test

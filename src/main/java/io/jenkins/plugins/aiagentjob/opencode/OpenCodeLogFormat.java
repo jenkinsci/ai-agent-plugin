@@ -53,10 +53,25 @@ public final class OpenCodeLogFormat implements AiAgentLogFormat {
             return classifyToolPart(lineNumber, part, rawDetails);
         }
 
-        if (typeLower.equals("step_start")
-                || typeLower.equals("step_finish")
-                || partType.equals("step-start")
-                || partType.equals("step-finish")) {
+        if (typeLower.equals("step_finish") || partType.equals("step-finish")) {
+            String reason = LogFormatUtils.firstNonEmpty(part, "reason");
+            if ("stop".equals(reason) || "end_turn".equals(reason)) {
+                JSONObject tokens = part.optJSONObject("tokens");
+                StringBuilder info = new StringBuilder();
+                info.append(LogFormatUtils.capitalize(reason));
+                if (tokens != null) {
+                    String total = LogFormatUtils.firstNonEmpty(tokens, "total");
+                    if (!total.isEmpty()) {
+                        info.append(" (").append(total).append(" tokens)");
+                    }
+                }
+                return AiAgentLogParser.ParsedLine.result(
+                        lineNumber, "result", "Result", info.toString(), rawDetails);
+            }
+            return AiAgentLogParser.ParsedLine.raw(lineNumber, "");
+        }
+
+        if (typeLower.equals("step_start") || partType.equals("step-start")) {
             return AiAgentLogParser.ParsedLine.raw(lineNumber, "");
         }
 

@@ -20,10 +20,9 @@ import org.junit.jupiter.api.condition.OS;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,20 +33,13 @@ import java.util.stream.Collectors;
 @WithJenkins
 class AiAgentRecordedConversationTest {
 
-    private String buildEchoScript(String fixtureName) throws Exception {
-        try (InputStream is = getClass().getResourceAsStream("fixtures/" + fixtureName);
-                BufferedReader reader =
-                        new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            List<String> lines = reader.lines().collect(Collectors.toList());
-            StringBuilder script = new StringBuilder();
-            for (int i = 0; i < lines.size(); i++) {
-                String escaped = lines.get(i).replace("\\", "\\\\").replace("'", "'\\'");
-                if (i > 0) {
-                    script.append(" && ");
-                }
-                script.append("echo '").append(escaped).append("'");
-            }
-            return script.toString();
+    private File writeFixtureToTempFile(String fixtureName) throws Exception {
+        try (InputStream is = getClass().getResourceAsStream("fixtures/" + fixtureName)) {
+            byte[] data = is.readAllBytes();
+            File temp = File.createTempFile("fixture-", ".jsonl");
+            temp.deleteOnExit();
+            Files.write(temp.toPath(), data);
+            return temp;
         }
     }
 
@@ -58,7 +50,8 @@ class AiAgentRecordedConversationTest {
         AiAgentBuilder builder = new AiAgentBuilder();
         builder.setAgent(agent);
         builder.setPrompt("test prompt");
-        builder.setCommandOverride(buildEchoScript(fixtureName));
+        File fixtureFile = writeFixtureToTempFile(fixtureName);
+        builder.setCommandOverride("cat " + fixtureFile.getAbsolutePath());
         builder.setFailOnAgentError(true);
         project.getBuildersList().add(builder);
         project.save();
@@ -175,8 +168,8 @@ class AiAgentRecordedConversationTest {
         assertTrue(cats.contains("tool_call"), "Should have tool_call");
         assertTrue(cats.contains("assistant"), "Should have assistant");
         assertFalse(cats.contains("tool_result"), "Empty Gemini tool results should stay hidden");
-        assertFalse(cats.contains("result"), "Stats-only Gemini result should stay hidden");
-        assertEquals(5, events.size(), "Current Gemini fixture should render 5 visible events");
+        assertTrue(cats.contains("result"), "Gemini result event should now show with status text");
+        assertEquals(6, events.size(), "Current Gemini fixture should render 6 visible events");
         long assistantCount =
                 events.stream().filter(e -> "assistant".equals(e.getCategory())).count();
         assertEquals(1, assistantCount, "Gemini deltas should merge into one assistant event");
@@ -205,9 +198,9 @@ class AiAgentRecordedConversationTest {
                 toolResults.stream().allMatch(e -> !e.getToolOutput().isEmpty()),
                 "OpenCode tool result output should be rendered from nested state.output");
         assertEquals(
-                3,
+                4,
                 action.getEvents().size(),
-                "Current OpenCode fixture should render 3 visible events");
+                "Current OpenCode fixture should render 4 visible events");
     }
 
     @Test

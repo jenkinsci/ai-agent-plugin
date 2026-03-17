@@ -22,12 +22,11 @@ import org.junit.jupiter.api.condition.OS;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** Tests for {@link AiAgentRunAction} metadata, getters, and progressive event API. */
 @WithJenkins
@@ -112,7 +111,7 @@ class AiAgentRunActionTest {
     @Test
     @EnabledOnOs(OS.LINUX)
     void progressiveEvents_returnsJsonWithEvents(JenkinsRule jenkins) throws Exception {
-        String script = buildEchoScript("claude-code-conversation.jsonl");
+        String script = buildCatScript("claude-code-conversation.jsonl");
         FreeStyleProject project =
                 newProject(jenkins, "test-progressive", b -> b.setCommandOverride(script));
 
@@ -141,7 +140,7 @@ class AiAgentRunActionTest {
     @Test
     @EnabledOnOs(OS.LINUX)
     void progressiveEvents_incrementalFetch(JenkinsRule jenkins) throws Exception {
-        String script = buildEchoScript("claude-code-conversation.jsonl");
+        String script = buildCatScript("claude-code-conversation.jsonl");
         FreeStyleProject project =
                 newProject(jenkins, "test-incremental", b -> b.setCommandOverride(script));
 
@@ -302,23 +301,16 @@ class AiAgentRunActionTest {
 
         assertTrue(text.contains("AI Agent Conversation #1"));
         assertTrue(text.contains("Explain this repository in detail"));
-        assertTrue(text.contains("Raw stream-json log"));
+        assertTrue(text.contains("Raw Log"));
     }
 
-    private String buildEchoScript(String fixtureName) throws Exception {
-        try (InputStream is = getClass().getResourceAsStream("fixtures/" + fixtureName);
-                BufferedReader reader =
-                        new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            List<String> lines = reader.lines().collect(Collectors.toList());
-            StringBuilder script = new StringBuilder();
-            for (int i = 0; i < lines.size(); i++) {
-                String escaped = lines.get(i).replace("\\", "\\\\").replace("'", "'\\'");
-                if (i > 0) {
-                    script.append(" && ");
-                }
-                script.append("echo '").append(escaped).append("'");
-            }
-            return script.toString();
+    private String buildCatScript(String fixtureName) throws Exception {
+        try (InputStream is = getClass().getResourceAsStream("fixtures/" + fixtureName)) {
+            byte[] data = is.readAllBytes();
+            File temp = File.createTempFile("fixture-", ".jsonl");
+            temp.deleteOnExit();
+            Files.write(temp.toPath(), data);
+            return "cat " + temp.getAbsolutePath();
         }
     }
 

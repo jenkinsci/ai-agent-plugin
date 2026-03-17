@@ -2,14 +2,19 @@
 <j:jelly xmlns:j="jelly:core"
          xmlns:st="jelly:stapler"
          xmlns:l="/lib/layout">
-  <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked" />
+  <script src="${resURL}/webjars/marked/17.0.4/lib/marked.umd.js"></script>
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <j:set var="selectedId" value="${it.selectedInvocationId}" />
 
   <l:layout permission="${it.run.parent.READ}" title="AI Agent Conversation" type="one-column">
     <l:main-panel>
-      <l:app-bar title="AI Agent Conversation #${selectedId}" />
+      <l:app-bar title="AI Agent Conversation #${selectedId}">
+        <a href="raw?invocation=${selectedId}" class="jenkins-button jenkins-button--tertiary">
+          <l:icon src="symbol-document-text" />
+          Raw Log
+        </a>
+      </l:app-bar>
 
       <j:if test="${selectedId le 0}">
         <div class="ai-conv-empty">No AI agent invocations found for this build.</div>
@@ -19,10 +24,10 @@
         <div class="ai-conv"
              data-ai-agent-root="true"
              data-live="${it.isInvocationLive(selectedId)}"
-             data-progressive-events-url="${it.urlName}/progressiveEvents?invocation=${selectedId}"
-             data-approve-url="${it.urlName}/approve?invocation=${selectedId}"
-             data-deny-url="${it.urlName}/deny?invocation=${selectedId}"
-             data-raw-url="${it.urlName}/raw?invocation=${selectedId}">
+             data-progressive-events-url="progressiveEvents?invocation=${selectedId}"
+             data-approve-url="approve?invocation=${selectedId}"
+             data-deny-url="deny?invocation=${selectedId}"
+             data-raw-url="raw?invocation=${selectedId}">
 
           <div class="ai-conv-meta">
             <span class="ai-meta-badge"><strong>Agent:</strong> ${it.getInvocationAgentType(selectedId)}</span>
@@ -221,10 +226,7 @@
             </j:if>
           </j:if>
 
-          <div class="ai-conv-links">
-            <a href="../">Back to build</a>
-            <a href="${it.urlName}/raw?invocation=${selectedId}">Raw stream-json log</a>
-          </div>
+
         </div>
       </j:if>
     </l:main-panel>

@@ -5,7 +5,7 @@
          xmlns:t="/lib/hudson"
          xmlns:f="/lib/form">
 
-  <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked" />
+  <script src="${resURL}/webjars/marked/17.0.4/lib/marked.umd.js"></script>
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <div class="ai-conv">

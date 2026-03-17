@@ -217,16 +217,13 @@ class AiAgentRunActionTest {
         String jelly =
                 readResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary.jelly");
         assertTrue(
-                jelly.contains(
-                        "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.marked\""),
-                "summary.jelly should load marked for markdown rendering");
+                jelly.contains("webjars/marked/"),
+                "summary.jelly should load marked from webjars for markdown rendering");
         assertTrue(
                 jelly.contains(
                         "<st:adjunct includes=\"io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources\""),
                 "summary.jelly should load adjunct resources");
         assertFalse(jelly.contains("<style"), "summary.jelly should not contain inline style tags");
-        assertFalse(
-                jelly.contains("<script"), "summary.jelly should not contain inline script tags");
         assertFalse(
                 jelly.contains(" style=")
                         || jelly.contains("style=\"")
@@ -246,9 +243,6 @@ class AiAgentRunActionTest {
                         .getResource(
                                 "/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary_resources.js"),
                 "summary JS resource should exist");
-        assertNotNull(
-                getClass().getResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/marked.js"),
-                "marked JS resource should exist");
         assertNotNull(
                 getClass()
                         .getResource(

@@ -46,8 +46,7 @@ final class AiAgentExecutor {
             AiAgentConfiguration config,
             AiAgentRunAction action)
             throws IOException, InterruptedException {
-        EnvVars env =
-                stepEnv != null ? new EnvVars(stepEnv) : new EnvVars(run.getEnvironment(listener));
+        EnvVars env = new EnvVars(stepEnv);
 
         String prompt = Util.replaceMacro(Util.fixNull(config.getPrompt()), env);
         String model = Util.replaceMacro(Util.fixNull(config.getModel()), env);
@@ -316,9 +315,6 @@ final class AiAgentExecutor {
         String trimmed = Util.fixNull(workDirValue).trim();
         if (trimmed.isEmpty()) {
             return workspace;
-        }
-        if (trimmed.startsWith("/") || trimmed.matches("^[A-Za-z]:\\\\.*")) {
-            return new FilePath(workspace.getChannel(), trimmed);
         }
         return workspace.child(trimmed);
     }

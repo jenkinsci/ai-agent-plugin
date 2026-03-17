@@ -66,24 +66,10 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
             Launcher launcher,
             TaskListener listener)
             throws InterruptedException, IOException {
-        executeForRun(run, workspace, env, launcher, listener);
-    }
-
-    private void executeForRun(
-            Run<?, ?> run,
-            FilePath workspace,
-            EnvVars env,
-            Launcher launcher,
-            TaskListener listener)
-            throws IOException, InterruptedException {
-        if (workspace == null) {
-            throw new IOException("Workspace is not available for this build.");
-        }
-        AiAgentConfiguration effective = this;
         AiAgentRunAction action = AiAgentRunAction.getOrCreate(run);
         int exitCode =
-                AiAgentExecutor.execute(run, workspace, env, launcher, listener, effective, action);
-        if (exitCode != 0 && effective.isFailOnAgentError()) {
+                AiAgentExecutor.execute(run, workspace, env, launcher, listener, this, action);
+        if (exitCode != 0 && isFailOnAgentError()) {
             listener.getLogger()
                     .println("[ai-agent] Agent finished with non-zero exit code: " + exitCode);
             throw new IOException("AI agent finished with non-zero exit code: " + exitCode);

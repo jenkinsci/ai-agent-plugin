@@ -2,7 +2,7 @@
 <j:jelly xmlns:j="jelly:core"
          xmlns:st="jelly:stapler"
          xmlns:l="/lib/layout">
-  <script src="${resURL}/webjars/marked/17.0.4/lib/marked.umd.js"></script>
+  <script src="${rootURL}/plugin/ai-agent/js/marked.umd.js"></script>
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <j:set var="selectedId" value="${it.selectedInvocationId}" />

@@ -229,16 +229,16 @@
   }
 
   function sendApprovalAction(url, id, reason, crumbRequestField, crumbValue, card) {
-    var buttons = card.querySelectorAll('button');
+    const buttons = card.querySelectorAll('button');
     buttons.forEach(function(b) { b.disabled = true; });
 
-    var params = new URLSearchParams();
+    const params = new URLSearchParams();
     params.append('id', id);
     if (reason != null && reason !== '') {
       params.append('reason', reason);
     }
 
-    var headers = { 'Accept': 'application/json' };
+    const headers = { 'Accept': 'application/json' };
     if (crumbRequestField && crumbValue) {
       headers[crumbRequestField] = crumbValue;
     }
@@ -249,13 +249,13 @@
       headers: headers
     }).then(function(response) {
       if (response.ok) {
-        var isDeny = reason != null;
+        const isDeny = reason != null;
         card.innerHTML = '<div class="ai-approval-decided ' + (isDeny ? 'ai-approval-denied' : 'ai-approval-approved') + '">'
           + (isDeny ? '✗ Denied' : '✓ Approved') + '</div>';
       } else {
         buttons.forEach(function(b) { b.disabled = false; });
         response.text().then(function(text) {
-          var errEl = card.querySelector('.ai-approval-error');
+          let errEl = card.querySelector('.ai-approval-error');
           if (!errEl) {
             errEl = document.createElement('div');
             errEl.className = 'ai-approval-error';

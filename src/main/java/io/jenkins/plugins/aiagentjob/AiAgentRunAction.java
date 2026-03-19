@@ -16,7 +16,9 @@ import net.sf.json.JSONObject;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.json.JsonHttpResponse;
 import org.kohsuke.stapler.verb.GET;
 
 import java.io.BufferedReader;
@@ -437,16 +439,14 @@ public class AiAgentRunAction implements Action, RunAction2 {
         return accept != null && accept.contains("application/json");
     }
 
-    private static org.kohsuke.stapler.json.JsonHttpResponse jsonOk() {
+    private static JsonHttpResponse jsonOk() {
         JSONObject ok = new JSONObject();
         ok.put("ok", true);
-        return new org.kohsuke.stapler.json.JsonHttpResponse(ok, 200);
+        return new JsonHttpResponse(ok, 200);
     }
 
     @GET
-    public void doProgressiveEvents(
-            org.kohsuke.stapler.StaplerRequest2 request,
-            org.kohsuke.stapler.StaplerResponse2 response)
+    public void doProgressiveEvents(StaplerRequest2 request, StaplerResponse2 response)
             throws IOException {
         checkReadPermission();
         long startLine = 0;
@@ -589,7 +589,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
     }
 
     private int resolveRequestedInvocationId() {
-        org.kohsuke.stapler.StaplerRequest2 request = Stapler.getCurrentRequest2();
+        StaplerRequest2 request = Stapler.getCurrentRequest2();
         if (request != null) {
             int requested = parseInvocationId(request.getParameter("invocation"));
             if (requested > 0) {
@@ -610,7 +610,7 @@ public class AiAgentRunAction implements Action, RunAction2 {
         }
     }
 
-    private static void addCrumb(JSONObject result, org.kohsuke.stapler.StaplerRequest2 request) {
+    private static void addCrumb(JSONObject result, StaplerRequest2 request) {
         CrumbIssuer issuer = Jenkins.get().getCrumbIssuer();
         if (issuer == null) {
             return;

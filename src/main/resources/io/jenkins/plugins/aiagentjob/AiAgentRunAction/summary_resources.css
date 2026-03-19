@@ -7,7 +7,7 @@
   --ai-border: var(--border-color);
   --ai-text: var(--text-color);
   --ai-text-muted: var(--text-color-secondary);
-  --ai-badge-text: var(--text-color);
+  --ai-badge-text: var(--button-color--primary);
   --ai-badge-success: var(--success-color);
   --ai-badge-error: var(--error-color);
   --ai-badge-warning: var(--warning-color);
@@ -17,7 +17,10 @@
 
 .ai-conv-title {
   margin: 0 0 8px 0;
-  font-size: 1.1em;
+  font-size: 1.25em;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .ai-invocation-card {
@@ -33,13 +36,13 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  cursor: pointer;
   list-style: none;
   border-bottom: 1px solid var(--ai-border);
 }
 
 .ai-invocation-summary:hover {
   background: var(--ai-bg-hover);
+  border-radius: 8px;
 }
 
 .ai-invocation-summary::-webkit-details-marker {
@@ -49,6 +52,9 @@
 .ai-invocation-title {
   font-weight: 600;
   color: var(--ai-text);
+  cursor: pointer;
+  background: none;
+  border: none;
 }
 
 .ai-invocation-summary-meta {
@@ -56,13 +62,7 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
-}
-
-.ai-title-icon {
-  vertical-align: middle;
-  margin-right: 4px;
-  width: 20px;
-  height: 20px;
+  align-items: center;
 }
 
 .ai-conv-meta {
@@ -72,6 +72,7 @@
   font-size: 0.83em;
   color: var(--ai-text-muted);
   margin-bottom: 12px;
+  align-items: center;
 }
 
 .ai-meta-badge {
@@ -90,7 +91,7 @@
 .ai-meta-badge-approvals {
   background: var(--ai-badge-neutral);
   border-color: var(--ai-badge-neutral);
-  color: var(--ai-badge-text);
+  color: var(--ai-text);
 }
 
 .ai-meta-badge-exit-success {
@@ -173,7 +174,7 @@
 
 .ai-badge-user {
   background: var(--ai-badge-neutral);
-  color: var(--ai-badge-text);
+  color: var(--ai-text);
 }
 
 .ai-badge-result {
@@ -193,7 +194,7 @@
 
 .ai-badge-tool_call {
   background: var(--ai-badge-neutral);
-  color: var(--ai-badge-text);
+  color: var(--ai-text);
 }
 
 .ai-badge-tool_result {

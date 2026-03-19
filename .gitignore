@@ -5,6 +5,7 @@ pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 release.properties
+src/main/webapp/js/bundles
 
 # Jenkins
 work/

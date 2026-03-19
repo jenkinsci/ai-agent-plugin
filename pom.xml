@@ -38,7 +38,6 @@
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
-    <hpi.bundledArtifacts>marked</hpi.bundledArtifacts>
     <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
     <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
   </properties>
@@ -52,6 +51,11 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.webjars.npm</groupId>
+        <artifactId>marked</artifactId>
+        <version>17.0.4</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -63,16 +67,6 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>plain-credentials</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jenkins-ci.main</groupId>
-      <artifactId>jenkins-test-harness</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.webjars.npm</groupId>
-      <artifactId>marked</artifactId>
-      <version>17.0.4</version>
     </dependency>
   </dependencies>
 
@@ -134,7 +128,7 @@
         <executions>
           <execution>
             <id>unpack-marked</id>
-            <phase>generate-resources</phase>
+            <phase>process-resources</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -144,32 +138,12 @@
                   <groupId>org.webjars.npm</groupId>
                   <artifactId>marked</artifactId>
                   <includes>META-INF/resources/webjars/marked/*/lib/marked.umd.js</includes>
-                  <outputDirectory>${project.build.directory}/webjars-tmp</outputDirectory>
+                  <outputDirectory>${basedir}/src/main/webapp/js/bundles</outputDirectory>
+                  <fileMappers>
+                    <org.codehaus.plexus.components.io.filemappers.FlattenFileMapper />
+                  </fileMappers>
                 </artifactItem>
               </artifactItems>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>flatten-marked</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <configuration>
-              <target>
-                <mkdir dir="${project.build.directory}/${project.artifactId}/js" />
-                <copy todir="${project.build.directory}/${project.artifactId}/js" flatten="true">
-                  <fileset dir="${project.build.directory}/webjars-tmp">
-                    <include name="**/marked.umd.js" />
-                  </fileset>
-                </copy>
-              </target>
             </configuration>
           </execution>
         </executions>

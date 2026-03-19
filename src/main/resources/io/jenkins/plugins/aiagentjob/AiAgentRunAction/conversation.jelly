@@ -2,15 +2,16 @@
 <j:jelly xmlns:j="jelly:core"
          xmlns:st="jelly:stapler"
          xmlns:l="/lib/layout">
-  <script src="${rootURL}/plugin/ai-agent/js/marked.umd.js"></script>
+  <script src="${resURL}/plugin/ai-agent/js/bundles/marked.umd.js"></script>
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <j:set var="selectedId" value="${it.selectedInvocationId}" />
 
-  <l:layout permission="${it.run.parent.READ}" title="AI Agent Conversation" type="one-column">
+  <l:layout permission="${it.run.parent.READ}" title="AI Agent Conversation">
+    <st:include page="sidepanel.jelly" it="${it.run}"/>
     <l:main-panel>
-      <l:app-bar title="AI Agent Conversation #${selectedId}">
-        <a href="raw?invocation=${selectedId}" class="jenkins-button jenkins-button--tertiary">
+      <l:app-bar title="AI Agent Conversation" subtitle="#${selectedId}">
+        <a href="raw?invocation=${selectedId}" class="jenkins-button">
           <l:icon src="symbol-document-text" />
           Raw Log
         </a>
@@ -45,14 +46,7 @@
               <span class="ai-meta-badge ai-meta-badge-approvals">Approvals</span>
             </j:if>
             <j:if test="${it.getInvocationExitCode(selectedId) != null}">
-              <j:choose>
-                <j:when test="${it.getInvocationExitCode(selectedId) == 0}">
-                  <span class="ai-meta-badge ai-meta-badge-exit-success">Exit: ${it.getInvocationExitCode(selectedId)}</span>
-                </j:when>
-                <j:otherwise>
-                  <span class="ai-meta-badge ai-meta-badge-exit-failure">Exit: ${it.getInvocationExitCode(selectedId)}</span>
-                </j:otherwise>
-              </j:choose>
+              <span class="ai-meta-badge ai-meta-badge-exit-${it.getInvocationExitCode(selectedId) == 0 ? 'success' : 'failure'}">Exit: ${it.getInvocationExitCode(selectedId)}</span>
             </j:if>
           </div>
 

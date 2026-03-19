@@ -216,7 +216,7 @@ class AiAgentRunActionTest {
         String jelly =
                 readResource("/io/jenkins/plugins/aiagentjob/AiAgentRunAction/summary.jelly");
         assertTrue(
-                jelly.contains("plugin/ai-agent/js/marked"),
+                jelly.contains("plugin/ai-agent/js/bundles/marked"),
                 "summary.jelly should load marked from plugin webapp for markdown rendering");
         assertTrue(
                 jelly.contains(

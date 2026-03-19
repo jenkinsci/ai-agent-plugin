@@ -209,14 +209,14 @@
       if (crumbRequestField && crumbValue) {
         html += '<input type="hidden" name="' + esc(crumbRequestField) + '" value="' + esc(crumbValue) + '" />';
       }
-      html += '<button type="submit">Approve</button></form>';
+      html += '<button type="submit" class="jenkins-button jenkins-button--primary">Approve</button></form>';
       html += '<form method="post" action="' + esc(denyUrl) + '" class="ai-inline-form">';
       html += '<input type="hidden" name="id" value="' + esc(approval.id) + '" />';
       if (crumbRequestField && crumbValue) {
         html += '<input type="hidden" name="' + esc(crumbRequestField) + '" value="' + esc(crumbValue) + '" />';
       }
-      html += '<input type="text" name="reason" placeholder="reason (optional)" class="ai-approval-reason" />';
-      html += '<button type="submit">Deny</button></form>';
+      html += '<input type="text" name="reason" placeholder="reason (optional)" class="ai-approval-reason jenkins-input" />';
+      html += '<button type="submit" class="jenkins-button jenkins-button--primary">Deny</button></form>';
       html += '</div></div>';
     }
     container.innerHTML = html;
@@ -375,10 +375,17 @@
 
     const details = document.querySelectorAll('.ai-invocation-details');
     if (details.length > 0) {
-      details[0].open = true;
-      for (let j = 1; j < details.length; j++) {
-        details[j].open = false;
-      }
+      const conv = details[0].querySelector('.ai-conv');
+        if (conv) {
+            conv.classList.remove("jenkins-hidden");
+        }
+        for (let j = 0; j < details.length; j++) {
+            const title = details[j].querySelector('.ai-invocation-title');
+            const conversation = details[0].querySelector('.ai-conv');
+            title.addEventListener('click', function (event) {
+                conversation.classList.toggle('jenkins-hidden');
+             });
+        }
     }
   }
 

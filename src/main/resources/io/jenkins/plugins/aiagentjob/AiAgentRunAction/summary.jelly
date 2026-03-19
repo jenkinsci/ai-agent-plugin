@@ -5,12 +5,13 @@
          xmlns:t="/lib/hudson"
          xmlns:f="/lib/form">
 
-  <script src="${rootURL}/plugin/ai-agent/js/marked.umd.js"></script>
+  <script type="text/javascript" src="${resURL}/plugin/ai-agent/js/bundles/marked.umd.js"></script>
   <st:adjunct includes="io.jenkins.plugins.aiagentjob.AiAgentRunAction.summary_resources" />
 
   <div class="ai-conv">
     <h3 class="ai-conv-title">
-      <l:icon src="terminal" class="ai-title-icon" />
+      <img src="${resURL}/plugin/ai-agent/browsers.svg" class="icon-md"/>
+      <l:icon src="symbol-terminal" class="icon-md" />
       AI Agent Conversation
     </h3>
 
@@ -20,9 +21,9 @@
 
     <j:forEach var="inv" items="${it.invocationsNewestFirst}">
       <div class="ai-invocation-card">
-        <details class="ai-invocation-details">
-          <summary class="ai-invocation-summary">
-            <span class="ai-invocation-title">Invocation #${inv.id}</span>
+        <div class="ai-invocation-details">
+          <div class="ai-invocation-summary">
+            <button type="button" class="ai-invocation-title">Invocation #${inv.id}</button>
             <span class="ai-invocation-summary-meta">
               <span class="ai-meta-badge"><strong>Agent:</strong> ${inv.agentType}</span>
               <j:if test="${it.getInvocationModel(inv.id) != ''}">
@@ -35,19 +36,14 @@
                 <span class="ai-meta-badge ai-meta-badge-approvals">Approvals</span>
               </j:if>
               <j:if test="${inv.exitCode != null}">
-                <j:choose>
-                  <j:when test="${inv.exitCode == 0}">
-                    <span class="ai-meta-badge ai-meta-badge-exit-success">Exit: ${inv.exitCode}</span>
-                  </j:when>
-                  <j:otherwise>
-                    <span class="ai-meta-badge ai-meta-badge-exit-failure">Exit: ${inv.exitCode}</span>
-                  </j:otherwise>
-                </j:choose>
+                <span class="ai-meta-badge ai-meta-badge-exit-${inv.exitCode == 0 ? 'success' : 'failure'}">Exit: ${inv.exitCode}</span>
               </j:if>
+              <a href="${it.urlName}/conversation?$invocation=${inv.id}" class="jenkins-button">Open full conversation</a>
+              <a href="${it.urlName}/raw?$invocation=${inv.id}" class="jenkins-button">Raw Log</a>
             </span>
-          </summary>
+          </div>
 
-          <div class="ai-conv"
+          <div class="ai-conv jenkins-hidden"
                data-ai-agent-root="true"
                data-live="${it.isInvocationLive(inv.id)}"
                data-progressive-events-url="${it.urlName}/progressiveEvents?invocation=${inv.id}"
@@ -235,13 +231,8 @@
                 </div>
               </j:if>
             </j:if>
-
-            <div class="ai-conv-links">
-              <a href="${it.urlName}/conversation?invocation=${inv.id}">Open full conversation</a>
-              <a href="${it.urlName}/raw?invocation=${inv.id}">Raw stream-json log</a>
-            </div>
           </div>
-        </details>
+        </div>
       </div>
     </j:forEach>
   </div>

@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 class AiAgentLogParserTest {
@@ -534,6 +535,7 @@ class AiAgentLogParserTest {
 
     @Test
     void parseLine_handlesResultWithDisplayText() {
+        Locale.setDefault(Locale.US);
         String json =
                 "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":5000,\"result\":\"Build completed successfully.\"}";
         AiAgentLogParser.ParsedLine line = AiAgentLogParser.parseLine(1, json);

@@ -608,6 +608,10 @@ public class AiAgentRunAction implements Action, RunAction2 {
         run.getParent().checkPermission(Item.BUILD);
     }
 
+    public Run<?, ?> getRun() {
+        return run;
+    }
+
     /** Serialized metadata for one invocation in a run. */
     public static final class InvocationRecord implements Serializable {
         private static final long serialVersionUID = 1L;

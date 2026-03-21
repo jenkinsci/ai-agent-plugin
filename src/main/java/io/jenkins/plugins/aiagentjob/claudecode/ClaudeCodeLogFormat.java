@@ -11,8 +11,9 @@ import net.sf.json.JSONObject;
  * Format-specific log classification for Claude Code stream-json output. Handles content arrays
  * (tool_use, tool_result, thinking, text) and stream_event deltas.
  *
- * <p>Used by both {@link ClaudeCodeAgentHandler} and {@link GeminiCliAgentHandler} since they share
- * the same stream-json format.
+ * <p>Used by both {@link ClaudeCodeAgentHandler} and {@link
+ * io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler GeminiCliAgentHandler} since they
+ * share the same stream-json format.
  */
 public final class ClaudeCodeLogFormat implements AiAgentLogFormat {
 

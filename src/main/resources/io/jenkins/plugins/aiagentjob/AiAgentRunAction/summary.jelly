@@ -10,7 +10,6 @@
 
   <div class="ai-conv">
     <h3 class="ai-conv-title">
-      <img src="${resURL}/plugin/ai-agent/browsers.svg" class="icon-md"/>
       <l:icon src="symbol-terminal" class="icon-md" />
       AI Agent Conversation
     </h3>

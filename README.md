@@ -38,6 +38,15 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 
 ## Installation
 
+### Option 1: Install from the Jenkins Plugin Center (Recommended)
+
+1. In Jenkins, go to **Manage Jenkins > Plugins**.
+2. Open the **Available plugins** tab.
+3. Search for `AI Agent` (plugin ID: `ai-agent`).
+4. Install the plugin and restart Jenkins if prompted.
+
+### Option 2: Offline/Manual Installation with an `.hpi` File
+
 1. Build the plugin (see [Building](#building)) or download a release `.hpi`.
 2. Go to **Manage Jenkins > Plugins > Advanced settings**.
 3. Upload the `.hpi` file under **Deploy Plugin**.

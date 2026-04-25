@@ -2,33 +2,33 @@ package io.jenkins.plugins.aiagentjob;
 
 /** Shared execution settings used by the AI agent builder step and command execution flow. */
 public interface AiAgentConfiguration {
-  AiAgentTypeHandler getAgent();
+    AiAgentTypeHandler getAgent();
 
-  String getModel();
+    String getModel();
 
-  String getPrompt();
+    String getPrompt();
 
-  String getWorkingDirectory();
+    String getWorkingDirectory();
 
-  boolean isYoloMode();
+    boolean isYoloMode();
 
-  boolean isRequireApprovals();
+    boolean isRequireApprovals();
 
-  int getApprovalTimeoutSeconds();
+    int getApprovalTimeoutSeconds();
 
-  String getCommandOverride();
+    String getCommandOverride();
 
-  String getExtraArgs();
+    String getExtraArgs();
 
-  String getEnvironmentVariables();
+    String getEnvironmentVariables();
 
-  boolean isFailOnAgentError();
+    boolean isFailOnAgentError();
 
-  String getSetupScript();
+    String getSetupScript();
 
-  String getApiCredentialsId();
+    String getApiCredentialsId();
 
-  String getEffectiveApiKeyEnvVar();
+    String getEffectiveApiKeyEnvVar();
 
-  boolean isDisableInteractive();
+    boolean isDisableInteractive();
 }

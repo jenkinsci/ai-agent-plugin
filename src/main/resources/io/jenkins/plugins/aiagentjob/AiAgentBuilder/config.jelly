@@ -18,6 +18,10 @@
     <f:checkbox />
   </f:entry>
 
+  <f:entry title="Disable interactive mode" field="disableInteractive" description="Provides an empty stdin to avoid the agent getting blocked waiting for user input.">
+    <f:checkbox />
+  </f:entry>
+
   <f:optionalBlock inline="true" title="Require manual approvals" field="requireApprovals">
     <f:entry title="Approval timeout (seconds)" field="approvalTimeoutSeconds" description="Only used when manual approvals are enabled.">
       <f:number min="1" step="1" />

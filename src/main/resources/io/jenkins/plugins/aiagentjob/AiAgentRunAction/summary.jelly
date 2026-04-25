@@ -37,8 +37,8 @@
               <j:if test="${inv.exitCode != null}">
                 <span class="ai-meta-badge ai-meta-badge-exit-${inv.exitCode == 0 ? 'success' : 'failure'}">Exit: ${inv.exitCode}</span>
               </j:if>
-              <a href="${it.urlName}/conversation?$invocation=${inv.id}" class="jenkins-button">Open full conversation</a>
-              <a href="${it.urlName}/raw?$invocation=${inv.id}" class="jenkins-button">Raw Log</a>
+              <a href="${it.urlName}/conversation?invocation=${inv.id}" class="jenkins-button">Open full conversation</a>
+              <a href="${it.urlName}/raw?invocation=${inv.id}" class="jenkins-button">Raw Log</a>
             </span>
           </div>
 

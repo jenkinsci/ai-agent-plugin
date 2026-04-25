@@ -29,4 +29,6 @@ public interface AiAgentConfiguration {
     String getApiCredentialsId();
 
     String getEffectiveApiKeyEnvVar();
+
+    boolean isDisableInteractive();
 }

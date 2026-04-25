@@ -54,6 +54,7 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     private String setupScript = "";
     private String apiCredentialsId = "";
     private String apiEnvVarName = "";
+    private boolean disableInteractive;
 
     @DataBoundConstructor
     public AiAgentBuilder() {}
@@ -223,6 +224,16 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     @DataBoundSetter
     public void setApiEnvVarName(String apiEnvVarName) {
         this.apiEnvVarName = Util.fixNull(apiEnvVarName);
+    }
+
+    @Override
+    public boolean isDisableInteractive() {
+        return disableInteractive;
+    }
+
+    @DataBoundSetter
+    public void setDisableInteractive(boolean disableInteractive) {
+        this.disableInteractive = disableInteractive;
     }
 
     @Override

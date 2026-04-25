@@ -39,6 +39,7 @@ class AiAgentBuilderConfigRoundTripTest {
         builder.setEnvironmentVariables("FOO=bar\nHELLO=world");
         builder.setSetupScript("export PATH=$HOME/.local/bin:$PATH\nnpm install");
         builder.setFailOnAgentError(false);
+        builder.setDisableInteractive(true);
         project.getBuildersList().add(builder);
         project.save();
 
@@ -59,6 +60,7 @@ class AiAgentBuilderConfigRoundTripTest {
         assertEquals("FOO=bar\nHELLO=world", reloaded.getEnvironmentVariables());
         assertEquals("export PATH=$HOME/.local/bin:$PATH\nnpm install", reloaded.getSetupScript());
         assertFalse(reloaded.isFailOnAgentError());
+        assertTrue(reloaded.isDisableInteractive());
     }
 
     @Test

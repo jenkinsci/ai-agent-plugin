@@ -112,15 +112,17 @@ final class AiAgentExecutor {
 
         boolean needsShellEnvironmentBootstrap =
                 launcher.isUnix() && !executionCustomization.getEnvironment().isEmpty();
+        boolean forceUnixShell = config.isDisableInteractive() && launcher.isUnix();
         List<String> command;
         FilePath tempSetupScript = null;
-        if ((!setupScript.isEmpty() && launcher.isUnix()) || needsShellEnvironmentBootstrap) {
+        if ((!setupScript.isEmpty() && launcher.isUnix()) || needsShellEnvironmentBootstrap || forceUnixShell) {
             String combinedScript =
                     buildCombinedScript(
                             setupScript,
                             executionCustomization.getEnvironment(),
                             agentCommand,
-                            commandOverride);
+                            commandOverride,
+                            config.isDisableInteractive());
             tempSetupScript = writeTempScript(workspace, combinedScript);
             command = buildShellCommand(combinedScript, tempSetupScript);
         } else if (!commandOverride.isEmpty()) {
@@ -128,8 +130,14 @@ final class AiAgentExecutor {
                 // Use a non-login shell so injected HOME/USERPROFILE are not overridden.
                 command = List.of("/bin/sh", "-c", commandOverride);
             } else {
-                command = List.of("cmd", "/c", commandOverride);
+                String cmd = commandOverride;
+                if (config.isDisableInteractive() && !cmd.toUpperCase().contains("< NUL")) {
+                    cmd = cmd.endsWith("\n") ? cmd.substring(0, cmd.length() - 1) + " < NUL\n" : cmd + " < NUL";
+                }
+                command = List.of("cmd", "/c", cmd);
             }
+        } else if (config.isDisableInteractive()) {
+            command = List.of("cmd", "/c", AiAgentCommandFactory.commandAsString(agentCommand) + " < NUL");
         } else {
             command = agentCommand;
         }
@@ -206,26 +214,30 @@ final class AiAgentExecutor {
         return exitCode;
     }
 
-    /**
-     * Builds the combined script that runs setup/bootstrap preamble and then launches the final
-     * agent command in the same shell session, so exported variables flow through.
-     */
     private static String buildCombinedScript(
             String setupScript,
             Map<String, String> shellEnvironment,
             List<String> agentCommand,
-            String commandOverride) {
+            String commandOverride,
+            boolean disableInteractive) {
         StringBuilder sb = new StringBuilder();
         appendShebangAwarePreamble(sb, setupScript, shellEnvironment);
         if (!commandOverride.isEmpty()) {
-            sb.append(commandOverride);
-            if (!commandOverride.endsWith("\n")) {
+            String cmd = commandOverride;
+            if (disableInteractive && !cmd.contains("< /dev/null")) {
+                cmd = cmd.endsWith("\n") ? cmd.substring(0, cmd.length() - 1) + " < /dev/null\n" : cmd + " < /dev/null";
+            }
+            sb.append(cmd);
+            if (!cmd.endsWith("\n")) {
                 sb.append('\n');
             }
         } else {
             sb.append("exec");
             for (String token : agentCommand) {
                 sb.append(' ').append(shellQuote(token));
+            }
+            if (disableInteractive) {
+                sb.append(" < /dev/null");
             }
             sb.append('\n');
         }

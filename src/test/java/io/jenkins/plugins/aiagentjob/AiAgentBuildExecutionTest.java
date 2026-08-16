@@ -9,10 +9,16 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.domains.Domain;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import hudson.FilePath;
+import hudson.Launcher;
+import hudson.LauncherDecorator;
+import hudson.Proc;
 import hudson.model.Executor;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
+import hudson.model.Node;
 import hudson.model.ParametersAction;
 import hudson.model.ParametersDefinitionProperty;
 import hudson.model.Result;
@@ -37,11 +43,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.TestExtension;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
@@ -122,6 +131,82 @@ class AiAgentBuildExecutionTest {
         assertNotNull(action);
         assertFalse(action.getEvents().isEmpty());
         assertTrue(action.getRawLogFile().exists());
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void disableInteractive_closesCommandStdin(JenkinsRule jenkins) throws Exception {
+        File fakeBin =
+                installExecutable(
+                        jenkins,
+                        "stdin-codex-bin",
+                        "stdin-codex",
+                        "#!/bin/sh\n"
+                                + "[ \"$1\" = \"--sandbox\" ] || exit 92\n"
+                                + "if IFS= read -r unexpected; then exit 91; fi\n"
+                                + "echo '{\"type\":\"item.completed\",\"item\":{\"type\":"
+                                + "\"agent_message\",\"text\":\"stdin closed\"}}'\n");
+        FreeStyleProject project =
+                newProject(
+                        jenkins,
+                        "ai-build-stdin-closed",
+                        b -> {
+                            b.setAgent(new CodexAgentHandler());
+                            b.setPrompt("hello");
+                            b.setExecutablePath(new File(fakeBin, "stdin-codex").getAbsolutePath());
+                            b.setDisableInteractive(true);
+                            b.setFailOnAgentError(true);
+                        });
+
+        QueueTaskFuture<FreeStyleBuild> future = project.scheduleBuild2(0);
+        assertNotNull(future);
+        try {
+            FreeStyleBuild build = future.get(10, TimeUnit.SECONDS);
+            jenkins.assertBuildStatusSuccess(build);
+            AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
+            assertNotNull(action);
+            assertTrue(Files.readString(action.getRawLogFile().toPath()).contains("stdin closed"));
+        } finally {
+            OpenStdinLauncherDecorator.closeInput();
+            if (!future.isDone()) {
+                future.cancel(true);
+            }
+        }
+    }
+
+    @TestExtension("disableInteractive_closesCommandStdin")
+    public static final class OpenStdinLauncherDecorator extends LauncherDecorator {
+        private static volatile PipedOutputStream openInput;
+
+        @NonNull
+        @Override
+        public Launcher decorate(@NonNull Launcher launcher, @NonNull Node node) {
+            return new Launcher.DecoratedLauncher(launcher) {
+                @Override
+                public Proc launch(ProcStarter starter) throws IOException {
+                    PipedOutputStream input = new PipedOutputStream();
+                    openInput = input;
+                    StringBuilder command = new StringBuilder();
+                    for (String argument : starter.cmds()) {
+                        if (!command.isEmpty()) {
+                            command.append(' ');
+                        }
+                        command.append('"').append(argument.replace("\"", "\\\"")).append('"');
+                    }
+                    return getInner()
+                            .launch(
+                                    starter.cmds(List.of("/bin/sh", "-c", command.toString()))
+                                            .stdin(new PipedInputStream(input)));
+                }
+            };
+        }
+
+        static void closeInput() throws IOException {
+            if (openInput != null) {
+                openInput.close();
+                openInput = null;
+            }
+        }
     }
 
     @Test
@@ -479,6 +564,10 @@ class AiAgentBuildExecutionTest {
         assertTrue(commandLine.contains("prompt with spaces"));
         assertFalse(commandLine.contains("%OPENAI_API_KEY%"));
         assertTrue(commandLine.contains("100% literal"));
+
+        List<String> nonInteractiveCommand =
+                AiAgentExecutor.buildWindowsCommand(List.of("codex", "exec", "prompt"), true);
+        assertEquals("<NUL", nonInteractiveCommand.get(nonInteractiveCommand.size() - 4));
     }
 
     @Test

@@ -170,19 +170,37 @@ final class AiAgentExecutor {
                                 acpExecution == null
                                         ? List.of()
                                         : acpExecution.getAuthenticationMethods().keySet(),
-                                acpExecution != null);
+                                acpExecution != null,
+                                disableInteractive);
                 tempSetupScript = writeTempScript(workspace, combinedScript);
                 command = buildShellCommand(combinedScript, tempSetupScript);
                 waitForAcpProcessReady = acpExecution != null;
             } else if (!commandOverride.isEmpty()) {
                 if (launcher.isUnix()) {
                     // Use a non-login shell so injected HOME/USERPROFILE are not overridden.
-                    command = List.of("/bin/sh", "-c", commandOverride);
+                    command =
+                            List.of(
+                                    "/bin/sh",
+                                    "-c",
+                                    disableInteractive
+                                            ? closeStdinInShell(commandOverride)
+                                            : commandOverride);
                 } else {
-                    command = List.of("cmd", "/c", commandOverride);
+                    command =
+                            List.of(
+                                    "cmd",
+                                    "/c",
+                                    disableInteractive
+                                            ? "(" + commandOverride + ") < NUL"
+                                            : commandOverride);
                 }
             } else if (!launcher.isUnix()) {
-                command = buildWindowsCommand(agentCommand);
+                command = buildWindowsCommand(agentCommand, disableInteractive);
+            } else if (disableInteractive) {
+                String nonInteractiveScript =
+                        buildCombinedScript("", Map.of(), agentCommand, "", List.of(), false, true);
+                tempSetupScript = writeTempScript(workspace, nonInteractiveScript);
+                command = buildShellCommand(nonInteractiveScript, tempSetupScript);
             } else {
                 command = agentCommand;
             }
@@ -249,7 +267,7 @@ final class AiAgentExecutor {
                                         .stderr(stderrSink)
                                         .quiet(true);
                         if (disableInteractive) {
-                            procStarter.stdin(InputStream.nullInputStream());
+                            procStarter.stdin(null);
                         }
                         Proc proc = startProcess(procStarter, command.get(0));
                         outputHandler.attach(proc);
@@ -445,7 +463,8 @@ final class AiAgentExecutor {
             List<String> agentCommand,
             String commandOverride,
             Iterable<String> acpAuthenticationEnvironmentVariables,
-            boolean acpMode) {
+            boolean acpMode,
+            boolean disableInteractive) {
         StringBuilder sb = new StringBuilder();
         appendShebangAwarePreamble(sb, setupScript, shellEnvironment);
         sb.append("set +x\n");
@@ -453,6 +472,9 @@ final class AiAgentExecutor {
             sb.append("printf '\\n'\n");
         }
         appendAcpAuthenticationMarkers(sb, acpAuthenticationEnvironmentVariables);
+        if (disableInteractive) {
+            sb.append("exec < /dev/null\n");
+        }
         if (!commandOverride.isEmpty()) {
             if (acpMode) {
                 appendAcpProcessReadyMarker(sb);
@@ -474,6 +496,10 @@ final class AiAgentExecutor {
             sb.append('\n');
         }
         return sb.toString();
+    }
+
+    private static String closeStdinInShell(String command) {
+        return "exec < /dev/null\n" + command;
     }
 
     private static void appendExecutableCheck(StringBuilder sb, String executable) {
@@ -598,7 +624,17 @@ final class AiAgentExecutor {
     }
 
     static List<String> buildWindowsCommand(List<String> command) {
-        return new ArgumentListBuilder().add(command).toWindowsCommand(true).toList();
+        return buildWindowsCommand(command, false);
+    }
+
+    static List<String> buildWindowsCommand(List<String> command, boolean disableInteractive) {
+        List<String> windowsCommand =
+                new ArrayList<>(
+                        new ArgumentListBuilder().add(command).toWindowsCommand(true).toList());
+        if (disableInteractive) {
+            windowsCommand.add(windowsCommand.size() - 3, "<NUL");
+        }
+        return windowsCommand;
     }
 
     private static FilePath resolveRunDirectory(FilePath workspace, String workDirValue) {

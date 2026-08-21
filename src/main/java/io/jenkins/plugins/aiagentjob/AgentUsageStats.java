@@ -214,6 +214,11 @@ public final class AgentUsageStats implements Serializable {
         cacheWriteTokens = saturatedAdd(cacheWriteTokens, value);
     }
 
+    /** Increment number of turns (additive). */
+    public void incrementNumTurns(int value) {
+        numTurns += value;
+    }
+
     /** Adds non-negative token counts without wrapping on malformed or oversized input. */
     public static long saturatedAdd(long current, long value) {
         long safeCurrent = Math.max(0, current);

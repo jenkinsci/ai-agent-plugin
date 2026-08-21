@@ -1,0 +1,32 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "mounts": [
+    {
+      "source": "/home/gvatsal60/github/temp/.m2",
+      "target": "/home/vscode/.m2",
+      "type": "bind"
+    }
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/java": {
+      "version": "17",
+      "installMaven": "true"
+    },
+    "ghcr.io/devcontainers/features/node": {
+      "version": "lts"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "kilocode.kilo-code",
+        "vscjava.vscode-java-pack"
+      ]
+    }
+  },
+  "postCreateCommand": "bash -c 'mvn clean verify -DskipTests'",
+  "forwardPorts": [
+    8080
+  ],
+  "remoteUser": "vscode"
+}

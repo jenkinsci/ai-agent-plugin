@@ -452,7 +452,7 @@ final class AcpClientSession {
                 findPermissionOption(
                         options,
                         decision.isApproved()
-                                ? new String[] {"allow_once"}
+                                ? new String[] {"allow_once", "allow_always"}
                                 : new String[] {"reject_once", "reject_always"});
         boolean approved = decision.isApproved() && optionId != null;
 
@@ -474,7 +474,7 @@ final class AcpClientSession {
         if (!approved) {
             String reason =
                     decision.isApproved()
-                            ? "agent did not offer an allow-once option"
+                            ? "agent did not offer an allow option"
                             : decision.getReason();
             outputHandler.writeStatus("Approval denied: " + reason);
             throw new ApprovalDeniedException();

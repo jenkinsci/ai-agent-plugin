@@ -140,9 +140,16 @@ public final class AgentUsageStats implements Serializable {
     public boolean hasData() {
         return inputTokens > 0
                 || outputTokens > 0
+                || cacheReadTokens > 0
+                || cacheWriteTokens > 0
                 || totalTokens > 0
+                || reasoningTokens > 0
                 || costUsd > 0
-                || durationMs > 0;
+                || durationMs > 0
+                || apiDurationMs > 0
+                || numTurns > 0
+                || toolCalls > 0
+                || !detectedModel.isEmpty();
     }
 
     // --- Mutators used by AiAgentStatsExtractor implementations ---

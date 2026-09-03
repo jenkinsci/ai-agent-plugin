@@ -304,6 +304,44 @@ class AgentUsageStatsTest {
     }
 
     @Test
+    void hasData_whenOnlyCacheTokensArePresent() {
+        AgentUsageStats cacheReadStats = new AgentUsageStats();
+        cacheReadStats.addCacheReadTokens(1);
+        assertTrue(cacheReadStats.hasData());
+
+        AgentUsageStats cacheWriteStats = new AgentUsageStats();
+        cacheWriteStats.addCacheWriteTokens(1);
+        assertTrue(cacheWriteStats.hasData());
+    }
+
+    @Test
+    void hasData_whenOnlyReasoningTokensArePresent() {
+        AgentUsageStats stats = new AgentUsageStats();
+        stats.addReasoningTokens(1);
+
+        assertTrue(stats.hasData());
+    }
+
+    @Test
+    void hasData_whenOnlyActivityOrModelDataIsPresent() {
+        AgentUsageStats apiDurationStats = new AgentUsageStats();
+        apiDurationStats.addApiDurationMs(1);
+        assertTrue(apiDurationStats.hasData());
+
+        AgentUsageStats turnStats = new AgentUsageStats();
+        turnStats.addNumTurns(1);
+        assertTrue(turnStats.hasData());
+
+        AgentUsageStats toolCallStats = new AgentUsageStats();
+        toolCallStats.addToolCalls(1);
+        assertTrue(toolCallStats.hasData());
+
+        AgentUsageStats modelStats = new AgentUsageStats();
+        modelStats.setDetectedModelIfEmpty("gpt-5.5");
+        assertTrue(modelStats.hasData());
+    }
+
+    @Test
     void malformedJson_isSkippedGracefully() throws IOException {
         File temp = File.createTempFile("bad-", ".jsonl");
         temp.deleteOnExit();

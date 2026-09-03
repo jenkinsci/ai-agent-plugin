@@ -26,6 +26,9 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 @WithJenkins
 class AcpClientSessionTest {
@@ -265,6 +268,91 @@ class AcpClientSessionTest {
         } finally {
             proc.kill();
         }
+    }
+
+    @Test
+    void usesAllowAlwaysWhenAllowOnceIsNotOffered(JenkinsRule jenkins) throws Exception {
+        assertApprovedPermissionOption(
+                """
+                [{"optionId":"always","kind":"allow_always"},{"optionId":"reject","kind":"reject_once"}]
+                """,
+                "always");
+    }
+
+    @Test
+    void prefersAllowOnceWhenBothAllowOptionsAreOffered(JenkinsRule jenkins) throws Exception {
+        assertApprovedPermissionOption(
+                """
+                [{"optionId":"always","kind":"allow_always"},{"optionId":"once","kind":"allow_once"}]
+                """,
+                "once");
+    }
+
+    private void assertApprovedPermissionOption(String options, String expectedOptionId)
+            throws Exception {
+        String responses =
+                """
+                {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}
+                {"jsonrpc":"2.0","id":2,"result":{"sessionId":"session-1"}}
+                {"jsonrpc":"2.0","id":"permission-1","method":"session/request_permission","params":{"sessionId":"session-1","toolCall":{"toolCallId":"call-1","title":"run command","kind":"execute","rawInput":{"command":"true"}},"options":%s}}
+                {"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn"}}
+                """
+                        .formatted(options.trim());
+        FakeProc proc = new FakeProc(responses, false);
+        ExecutionRegistry.LiveExecution liveExecution = new ExecutionRegistry.LiveExecution();
+
+        try (AiAgentExecutor.AgentOutputHandler output = newOutputHandler()) {
+            AcpClientSession session =
+                    new AcpClientSession(
+                            proc,
+                            proc.getStdout(),
+                            proc.getStdin(),
+                            output,
+                            liveExecution,
+                            Duration.ofSeconds(2),
+                            Duration.ofSeconds(1));
+            CompletableFuture<Boolean> execution =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return session.execute(
+                                            tempDirectory.toString(),
+                                            "respond done",
+                                            "",
+                                            "",
+                                            Map.of(),
+                                            List.of(),
+                                            Map.of());
+                                } catch (IOException | InterruptedException e) {
+                                    throw new CompletionException(e);
+                                }
+                            });
+
+            ExecutionRegistry.PendingApproval pending = waitForPendingApproval(liveExecution);
+            assertTrue(liveExecution.approve(pending.getId()));
+            assertTrue(execution.get(2, TimeUnit.SECONDS));
+            assertTrue(
+                    proc.stdinText()
+                            .contains(
+                                    "\"outcome\":\"selected\",\"optionId\":\""
+                                            + expectedOptionId
+                                            + "\""));
+        } finally {
+            proc.kill();
+        }
+    }
+
+    private static ExecutionRegistry.PendingApproval waitForPendingApproval(
+            ExecutionRegistry.LiveExecution liveExecution) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+        while (System.nanoTime() < deadline) {
+            List<ExecutionRegistry.PendingApproval> approvals = liveExecution.getPendingApprovals();
+            if (!approvals.isEmpty()) {
+                return approvals.get(0);
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("ACP permission request did not reach Jenkins");
     }
 
     private AiAgentExecutor.AgentOutputHandler newOutputHandler() throws IOException {

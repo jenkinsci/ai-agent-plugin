@@ -9,6 +9,7 @@ import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeStatsExtractor;
 import io.jenkins.plugins.aiagentjob.codex.CodexStatsExtractor;
 import io.jenkins.plugins.aiagentjob.cursor.CursorStatsExtractor;
 import io.jenkins.plugins.aiagentjob.grokbuild.GrokBuildStatsExtractor;
+import io.jenkins.plugins.aiagentjob.kiro.KiroStatsExtractor;
 import io.jenkins.plugins.aiagentjob.opencode.OpenCodeStatsExtractor;
 
 import net.sf.json.JSONObject;
@@ -277,6 +278,22 @@ class AgentUsageStatsTest {
     void cursor_durationFormatsMinutes() throws IOException {
         AgentUsageStats stats = parseStats("stats-cursor.jsonl", CursorStatsExtractor.INSTANCE);
         assertEquals("1m 2s", stats.getDurationDisplay());
+    }
+
+    // ======================== Kiro CLI ========================
+
+    @Test
+    void kiroCli_extractsSessionUsageAndModel() throws IOException {
+        AgentUsageStats stats = parseStats("stats-kiro.jsonl", KiroStatsExtractor.INSTANCE);
+
+        assertTrue(stats.hasData());
+        assertEquals(2250, stats.getInputTokens());
+        assertEquals(85, stats.getOutputTokens());
+        assertEquals(35, stats.getReasoningTokens());
+        assertEquals(650, stats.getCacheReadTokens());
+        assertEquals(2335, stats.getTotalTokens());
+        assertEquals(3, stats.getNumTurns());
+        assertEquals(1, stats.getToolCalls());
     }
 
     // ======================== Edge cases ========================

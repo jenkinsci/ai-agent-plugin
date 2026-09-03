@@ -11,6 +11,7 @@ import io.jenkins.plugins.aiagentjob.claudecode.ClaudeCodeLogFormat;
 import io.jenkins.plugins.aiagentjob.codex.CodexLogFormat;
 import io.jenkins.plugins.aiagentjob.cursor.CursorLogFormat;
 import io.jenkins.plugins.aiagentjob.grokbuild.GrokBuildLogFormat;
+import io.jenkins.plugins.aiagentjob.kiro.KiroLogFormat;
 import io.jenkins.plugins.aiagentjob.opencode.OpenCodeLogFormat;
 
 import org.junit.jupiter.api.Test;
@@ -584,6 +585,123 @@ class AiAgentLogParserTest {
         assertEquals("Max turns reached", maxTurns.getContent());
     }
 
+    // ======================== Kiro CLI Tests ========================
+
+    @Test
+    void kiroCliSession_parsesCurrentTranscriptShape() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("kiro-cli-conversation.jsonl", KiroLogFormat.INSTANCE);
+        assertFalse(events.isEmpty(), "Should have events");
+
+        List<String> cats = categories(events);
+        assertTrue(cats.contains("user"), "Should have user prompt");
+        assertTrue(cats.contains("assistant"), "Should have assistant message");
+        assertTrue(cats.contains("tool_call"), "Should have tool_call");
+        assertTrue(cats.contains("tool_result"), "Should have tool_result");
+        assertEquals(8, events.size(), "Current Kiro fixture should keep 8 visible events");
+    }
+
+    @Test
+    void kiroCliSession_showsToolInputsAndOutputs() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("kiro-cli-conversation.jsonl", KiroLogFormat.INSTANCE);
+        List<AiAgentLogParser.EventView> toolCalls =
+                events.stream()
+                        .filter(e -> "tool_call".equals(e.getCategory()))
+                        .collect(Collectors.toList());
+
+        assertEquals(2, toolCalls.size(), "Should have 2 tool calls");
+        assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().contains("Directory")));
+        assertTrue(toolCalls.stream().anyMatch(e -> e.getToolInput().contains("mvn")));
+
+        List<AiAgentLogParser.EventView> toolResults =
+                events.stream()
+                        .filter(e -> "tool_result".equals(e.getCategory()))
+                        .collect(Collectors.toList());
+        assertEquals(2, toolResults.size(), "Should have 2 tool results");
+        assertTrue(toolResults.stream().anyMatch(e -> e.getToolOutput().contains("README.md")));
+        assertTrue(toolResults.stream().anyMatch(e -> e.getToolOutput().contains("BUILD SUCCESS")));
+    }
+
+    @Test
+    void kiroCliSession_mergesAssistantTextBlocks() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("kiro-cli-conversation.jsonl", KiroLogFormat.INSTANCE);
+        List<AiAgentLogParser.EventView> assistantEvents =
+                events.stream()
+                        .filter(e -> "assistant".equals(e.getCategory()))
+                        .collect(Collectors.toList());
+
+        assertEquals(3, assistantEvents.size(), "Should have 3 assistant message events");
+        assertTrue(assistantEvents.get(0).getContent().contains("inspect the project structure"));
+        assertTrue(assistantEvents.get(1).getContent().contains("run the build"));
+        assertTrue(assistantEvents.get(2).getContent().contains("Build passed"));
+    }
+
+    @Test
+    void kiroCliRawText_stripsAnsiAndGtPrefix() {
+        String raw = "\u001b[38;5;141m> Hello world\u001b[0m";
+
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, raw, KiroLogFormat.INSTANCE);
+
+        assertEquals("assistant", line.toEventView().getCategory());
+        assertEquals("Hello world", line.toEventView().getContent());
+    }
+
+    @Test
+    void kiroCliRawText_handlesPlainResponse() {
+        String raw = "> Simple response without ANSI";
+
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, raw, KiroLogFormat.INSTANCE);
+
+        assertEquals("assistant", line.toEventView().getCategory());
+        assertEquals("Simple response without ANSI", line.toEventView().getContent());
+    }
+
+    @Test
+    void kiroCliRawText_preservesNonResponseLines() {
+        String raw = "Some plain text without prefix";
+
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, raw, KiroLogFormat.INSTANCE);
+
+        assertEquals("raw", line.toEventView().getCategory());
+        assertEquals("Some plain text without prefix", line.toEventView().getContent());
+    }
+
+    @Test
+    void kiroCliAcp_parsesAgentMessageChunk() {
+        String json =
+                "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"s1\",\"update\":{\"sessionUpdate\":\"agent_message_chunk\",\"content\":{\"type\":\"text\",\"text\":\"Hello from ACP\"}}}}";
+
+        AiAgentLogParser.ParsedLine line =
+                AiAgentLogParser.parseLine(1, json, KiroLogFormat.INSTANCE);
+
+        assertEquals("assistant", line.toEventView().getCategory());
+        assertEquals("Hello from ACP", line.toEventView().getContent());
+    }
+
+    @Test
+    void kiroCliAcp_parsesToolCallAndUpdate() {
+        String toolCall =
+                "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"s1\",\"update\":{\"sessionUpdate\":\"tool_call\",\"toolCallId\":\"tc1\",\"title\":\"read\",\"kind\":\"read\",\"rawInput\":{\"path\":\"/tmp/README.md\"}}}}";
+        String toolUpdate =
+                "{\"jsonrpc\":\"2.0\",\"method\":\"session/update\",\"params\":{\"sessionId\":\"s1\",\"update\":{\"sessionUpdate\":\"tool_call_update\",\"toolCallId\":\"tc1\",\"status\":\"completed\",\"content\":[{\"type\":\"text\",\"text\":\"file contents\"}]}}}";
+
+        AiAgentLogParser.ParsedLine call =
+                AiAgentLogParser.parseLine(1, toolCall, KiroLogFormat.INSTANCE);
+        AiAgentLogParser.ParsedLine update =
+                AiAgentLogParser.parseLine(2, toolUpdate, KiroLogFormat.INSTANCE);
+
+        assertEquals("tool_call", call.toEventView().getCategory());
+        assertEquals("read", call.toEventView().getLabel());
+        assertEquals("/tmp/README.md", call.toEventView().getToolInput());
+        assertEquals("tool_result", update.toEventView().getCategory());
+        assertEquals("file contents", update.toEventView().getToolOutput());
+    }
+
     // ======================== Error Handling Tests ========================
 
     @Test
@@ -1008,6 +1126,13 @@ class AiAgentLogParserTest {
         List<AiAgentLogParser.EventView> events =
                 parseFixture("opencode-conversation.jsonl", OpenCodeLogFormat.INSTANCE);
         assertEquals(4, events.size(), "Current OpenCode fixture should produce 4 visible events");
+    }
+
+    @Test
+    void kiroConversation_hasCorrectEventCount() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("kiro-cli-conversation.jsonl", KiroLogFormat.INSTANCE);
+        assertEquals(8, events.size(), "Current Kiro fixture should produce 8 visible events");
     }
 
     // ======================== Markdown rendering ========================

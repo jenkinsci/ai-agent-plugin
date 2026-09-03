@@ -38,4 +38,19 @@ public interface AiAgentLogFormat {
         AiAgentLogParser.ParsedLine parsed = classify(lineNumber, json);
         return parsed == null ? null : List.of(parsed);
     }
+
+    /**
+     * Attempt to classify a raw (non-JSON) log line.
+     *
+     * <p>The default implementation returns a raw parsed line. Agents that emit plain-text output
+     * can override this to produce assistant messages or other structured events from text lines.
+     *
+     * @param lineNumber 1-based line number in the raw log file
+     * @param line the trimmed raw log line
+     * @return a classified {@link AiAgentLogParser.ParsedLine}, or {@code null} to fall back to
+     *     {@link AiAgentLogParser.ParsedLine#raw(long, String)}
+     */
+    default List<AiAgentLogParser.ParsedLine> classifyRaw(long lineNumber, String line) {
+        return List.of(AiAgentLogParser.ParsedLine.raw(lineNumber, line));
+    }
 }

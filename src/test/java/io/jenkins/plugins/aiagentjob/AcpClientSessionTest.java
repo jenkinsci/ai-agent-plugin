@@ -154,6 +154,133 @@ class AcpClientSessionTest {
     }
 
     @Test
+    void resolvesArbitraryConfigIdsWithoutCategoriesAndUsesUpdatedOptions(JenkinsRule jenkins)
+            throws Exception {
+        String responses =
+                """
+                {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}
+                {"jsonrpc":"2.0","id":2,"result":{"sessionId":"session-1","configOptions":[{"id":"active-model","name":"Model","type":"select","currentValue":"model-1","options":[{"value":"model-1","name":"Model 1"},{"value":"model-2","name":"Model 2"}]},{"id":"initial-depth","name":"Reasoning effort","type":"select","currentValue":"low","options":[{"value":"low","name":"Low"}]}]}}
+                {"jsonrpc":"2.0","id":3,"result":{"configOptions":[{"id":"active-model","name":"Model","type":"select","currentValue":"model-2","options":[{"value":"model-1","name":"Model 1"},{"value":"model-2","name":"Model 2"}]},{"id":"thinking-depth","name":"Reasoning effort","type":"select","currentValue":"low","options":[{"value":"low","name":"Low"},{"value":"high","name":"High"}]}]}}
+                {"jsonrpc":"2.0","id":4,"result":{"configOptions":[]}}
+                {"jsonrpc":"2.0","id":5,"result":{"stopReason":"end_turn"}}
+                """;
+        FakeProc proc = new FakeProc(responses, false);
+
+        try (AiAgentExecutor.AgentOutputHandler output = newOutputHandler()) {
+            AcpClientSession session =
+                    new AcpClientSession(
+                            proc,
+                            proc.getStdout(),
+                            proc.getStdin(),
+                            output,
+                            new ExecutionRegistry.LiveExecution(),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(1));
+
+            assertTrue(
+                    session.execute(
+                            tempDirectory.toString(),
+                            "respond done",
+                            "model-2",
+                            "high",
+                            Map.of(),
+                            List.of(),
+                            Map.of()));
+            assertTrue(
+                    proc.stdinText()
+                            .contains("\"configId\":\"active-model\",\"value\":\"model-2\""));
+            assertTrue(
+                    proc.stdinText()
+                            .contains("\"configId\":\"thinking-depth\",\"value\":\"high\""));
+            assertFalse(proc.stdinText().contains("\"configId\":\"initial-depth\""));
+        } finally {
+            proc.kill();
+        }
+    }
+
+    @Test
+    void rejectsUnsupportedAdvertisedConfigValue(JenkinsRule jenkins) throws Exception {
+        String responses =
+                """
+                {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}
+                {"jsonrpc":"2.0","id":2,"result":{"sessionId":"session-1","configOptions":[{"id":"active-model","name":"Model","category":"model","type":"select","currentValue":"model-1","options":[{"value":"model-1","name":"Model 1"}]}]}}
+                """;
+        FakeProc proc = new FakeProc(responses, false);
+
+        try (AiAgentExecutor.AgentOutputHandler output = newOutputHandler()) {
+            AcpClientSession session =
+                    new AcpClientSession(
+                            proc,
+                            proc.getStdout(),
+                            proc.getStdin(),
+                            output,
+                            new ExecutionRegistry.LiveExecution(),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(1));
+
+            IOException error =
+                    assertThrows(
+                            IOException.class,
+                            () ->
+                                    session.execute(
+                                            tempDirectory.toString(),
+                                            "respond done",
+                                            "missing-model",
+                                            "",
+                                            Map.of(),
+                                            List.of(),
+                                            Map.of()));
+
+            assertTrue(error.getMessage().contains("missing-model"));
+            assertTrue(error.getMessage().contains("active-model"));
+            assertTrue(error.getMessage().contains("model-1"));
+        } finally {
+            proc.kill();
+        }
+    }
+
+    @Test
+    void rejectsAmbiguousCategorylessConfigValue(JenkinsRule jenkins) throws Exception {
+        String responses =
+                """
+                {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}
+                {"jsonrpc":"2.0","id":2,"result":{"sessionId":"session-1","configOptions":[{"id":"quality","name":"Quality","type":"select","currentValue":"low","options":[{"value":"low","name":"Low"},{"value":"high","name":"High"}]},{"id":"thinking-depth","name":"Thinking","type":"select","currentValue":"low","options":[{"value":"low","name":"Low"},{"value":"high","name":"High"}]}]}}
+                """;
+        FakeProc proc = new FakeProc(responses, false);
+
+        try (AiAgentExecutor.AgentOutputHandler output = newOutputHandler()) {
+            AcpClientSession session =
+                    new AcpClientSession(
+                            proc,
+                            proc.getStdout(),
+                            proc.getStdin(),
+                            output,
+                            new ExecutionRegistry.LiveExecution(),
+                            Duration.ofSeconds(1),
+                            Duration.ofSeconds(1));
+
+            IOException error =
+                    assertThrows(
+                            IOException.class,
+                            () ->
+                                    session.execute(
+                                            tempDirectory.toString(),
+                                            "respond done",
+                                            "",
+                                            "high",
+                                            Map.of(),
+                                            List.of(),
+                                            Map.of()));
+
+            assertTrue(error.getMessage().contains("high"));
+            assertTrue(error.getMessage().contains("quality"));
+            assertTrue(error.getMessage().contains("thinking-depth"));
+        } finally {
+            proc.kill();
+        }
+    }
+
+    @Test
     void timesOutWhenAuthenticationDoesNotRespond(JenkinsRule jenkins) throws Exception {
         String initialize =
                 """

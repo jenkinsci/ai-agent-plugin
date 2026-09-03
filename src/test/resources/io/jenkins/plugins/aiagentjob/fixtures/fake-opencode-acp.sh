@@ -10,14 +10,15 @@ printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":1,"agentCapabilitie
 
 IFS= read -r session_request
 session_id=$(printf '%s\n' "$session_request" | sed -n 's/.*"id":\([^,}]*\).*/\1/p')
-printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"session-1","configOptions":[]}}\n' "$session_id"
+config_options='[{"id":"preferred-model","name":"Model","category":"model","type":"select","currentValue":"test/provider:high","options":[{"value":"test/provider:high","name":"Test model"}]},{"id":"thinking-depth","name":"Reasoning effort","category":"thought_level","type":"select","currentValue":"high","options":[{"value":"high","name":"High"}]}]'
+printf '{"jsonrpc":"2.0","id":%s,"result":{"sessionId":"session-1","configOptions":%s}}\n' "$session_id" "$config_options"
 
 while IFS= read -r request; do
   case "$request" in
     *'"method":"session/set_config_option"'*)
       printf '%s\n' "$request" >> config-requests.jsonl
       request_id=$(printf '%s\n' "$request" | sed -n 's/.*"id":\([^,}]*\).*/\1/p')
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":[]}}\n' "$request_id"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"configOptions":%s}}\n' "$request_id" "$config_options"
       ;;
     *'"method":"session/prompt"'*)
       prompt_id=$(printf '%s\n' "$request" | sed -n 's/.*"id":\([^,}]*\).*/\1/p')

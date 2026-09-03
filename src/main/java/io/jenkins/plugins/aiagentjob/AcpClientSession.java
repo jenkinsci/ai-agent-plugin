@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -100,10 +101,15 @@ final class AcpClientSession {
                     authenticationMethods,
                     fallbackAuthenticationMethods,
                     environment);
-            String sessionId = newSession(cwd);
-            setConfigOption(sessionId, "model", model);
-            setConfigOption(sessionId, "effort", reasoningEffort);
-            prompt(sessionId, prompt);
+            SessionConfiguration session = newSession(cwd);
+            setConfigOption(session, "model", List.of("model", "models"), "model", model);
+            setConfigOption(
+                    session,
+                    "thought_level",
+                    List.of("effort", "reasoning_effort", "reasoningEffort", "thought_level"),
+                    "reasoning effort",
+                    reasoningEffort);
+            prompt(session.sessionId, prompt);
             return true;
         } catch (ApprovalDeniedException e) {
             return false;
@@ -179,24 +185,150 @@ final class AcpClientSession {
         return methods;
     }
 
-    private String newSession(String cwd) throws IOException, InterruptedException {
+    private SessionConfiguration newSession(String cwd) throws IOException, InterruptedException {
         JSONObject params = object("cwd", cwd, "mcpServers", new JSONArray());
         JSONObject result = request("session/new", params);
         String sessionId = result.optString("sessionId", "").trim();
         if (sessionId.isEmpty()) {
             throw new IOException("ACP agent returned no session ID.");
         }
-        return sessionId;
+        return new SessionConfiguration(sessionId, result.optJSONArray("configOptions"));
     }
 
-    private void setConfigOption(String sessionId, String configId, String value)
+    private void setConfigOption(
+            SessionConfiguration session,
+            String category,
+            List<String> fallbackIds,
+            String selectionName,
+            String value)
             throws IOException, InterruptedException {
         if (value == null || value.trim().isEmpty()) {
             return;
         }
+        String requestedValue = value.trim();
+        JSONObject option =
+                findConfigOption(
+                        session.configOptions,
+                        category,
+                        fallbackIds,
+                        selectionName,
+                        requestedValue);
+        if (option == null) {
+            throw new IOException(
+                    "ACP agent does not advertise a "
+                            + selectionName
+                            + " configuration option for requested value '"
+                            + requestedValue
+                            + "'.");
+        }
+
+        String configId = option.optString("id", "").trim();
+        if (configId.isEmpty()) {
+            throw new IOException(
+                    "ACP agent advertised a "
+                            + selectionName
+                            + " configuration option with no ID.");
+        }
+        JSONArray values = option.optJSONArray("options");
+        List<String> availableValues = configValues(values);
+        if (!availableValues.contains(requestedValue)) {
+            throw new IOException(
+                    "ACP "
+                            + selectionName
+                            + " configuration option '"
+                            + configId
+                            + "' does not support requested value '"
+                            + requestedValue
+                            + "'. Available values: "
+                            + (availableValues.isEmpty()
+                                    ? "none"
+                                    : String.join(", ", availableValues))
+                            + ".");
+        }
+
         JSONObject params =
-                object("sessionId", sessionId, "configId", configId, "value", value.trim());
-        request("session/set_config_option", params);
+                object(
+                        "sessionId",
+                        session.sessionId,
+                        "configId",
+                        configId,
+                        "value",
+                        requestedValue);
+        JSONObject result = request("session/set_config_option", params);
+        JSONArray updatedOptions = result.optJSONArray("configOptions");
+        if (updatedOptions != null) {
+            session.configOptions = updatedOptions;
+        }
+    }
+
+    private static JSONObject findConfigOption(
+            JSONArray options,
+            String category,
+            List<String> fallbackIds,
+            String selectionName,
+            String requestedValue)
+            throws IOException {
+        if (options == null) {
+            return null;
+        }
+        for (int i = 0; i < options.size(); i++) {
+            Object item = options.get(i);
+            if (item instanceof JSONObject
+                    && category.equals(((JSONObject) item).optString("category", ""))) {
+                return (JSONObject) item;
+            }
+        }
+        for (int i = 0; i < options.size(); i++) {
+            Object item = options.get(i);
+            if (item instanceof JSONObject
+                    && fallbackIds.contains(((JSONObject) item).optString("id", ""))) {
+                return (JSONObject) item;
+            }
+        }
+        List<JSONObject> valueMatches = new ArrayList<>();
+        for (int i = 0; i < options.size(); i++) {
+            Object item = options.get(i);
+            if (item instanceof JSONObject
+                    && configValues(((JSONObject) item).optJSONArray("options"))
+                            .contains(requestedValue)) {
+                valueMatches.add((JSONObject) item);
+            }
+        }
+        if (valueMatches.size() == 1) {
+            return valueMatches.get(0);
+        }
+        if (valueMatches.size() > 1) {
+            List<String> ids = new ArrayList<>();
+            for (JSONObject match : valueMatches) {
+                ids.add(match.optString("id", "").trim());
+            }
+            throw new IOException(
+                    "ACP agent advertised multiple configuration options for requested "
+                            + selectionName
+                            + " value '"
+                            + requestedValue
+                            + "': "
+                            + String.join(", ", ids)
+                            + ".");
+        }
+        return null;
+    }
+
+    private static List<String> configValues(JSONArray options) {
+        if (options == null) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (int i = 0; i < options.size(); i++) {
+            Object item = options.get(i);
+            if (item instanceof JSONObject) {
+                String value = ((JSONObject) item).optString("value", "").trim();
+                if (!value.isEmpty()) {
+                    values.add(value);
+                }
+            }
+        }
+        return values;
     }
 
     private void prompt(String sessionId, String prompt) throws IOException, InterruptedException {
@@ -530,6 +662,16 @@ final class AcpClientSession {
 
     private static final class ApprovalDeniedException extends IOException {
         private static final long serialVersionUID = 1L;
+    }
+
+    private static final class SessionConfiguration {
+        private final String sessionId;
+        private JSONArray configOptions;
+
+        private SessionConfiguration(String sessionId, JSONArray configOptions) {
+            this.sessionId = sessionId;
+            this.configOptions = configOptions;
+        }
     }
 
     private static final class ReadResult {

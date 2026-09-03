@@ -929,8 +929,9 @@ class AiAgentBuildExecutionTest {
                         .contains("\"optionId\":\"once\""));
         String configRequests = buildWorkspace.child("config-requests.jsonl").readToString();
         assertTrue(
-                configRequests.contains("\"configId\":\"model\",\"value\":\"test/provider:high\""));
-        assertTrue(configRequests.contains("\"configId\":\"effort\",\"value\":\"high\""));
+                configRequests.contains(
+                        "\"configId\":\"preferred-model\",\"value\":\"test/provider:high\""));
+        assertTrue(configRequests.contains("\"configId\":\"thinking-depth\",\"value\":\"high\""));
         assertTrue(buildWorkspace.child("acp-command.txt").readToString().contains("acp --pure"));
 
         String rawLog = Files.readString(action.getRawLogFile().toPath());
@@ -1013,6 +1014,7 @@ class AiAgentBuildExecutionTest {
         assertTrue(acpCommand.contains("--reasoning-effort high"));
         assertTrue(acpCommand.endsWith("--plugin-dir /tmp/grok-plugin stdio\n"));
         assertFalse(acpCommand.contains("--always-approve"));
+        assertFalse(workspace.child("config-requests.jsonl").exists());
 
         String rawLog = Files.readString(action.getRawLogFile().toPath());
         assertTrue(rawLog.contains("session/request_permission"));

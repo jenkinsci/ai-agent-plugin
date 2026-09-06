@@ -41,17 +41,14 @@ public final class KiroAgentHandler extends AiAgentTypeHandler {
         command.add("kiro-cli");
         command.add("chat");
         command.add("--no-interactive");
-        command.add("--wrap");
-        command.add("never");
-        command.add("--trust-all-tools");
+        if (config.isYoloMode()) {
+            command.add("--trust-all-tools");
+        }
+        command.add("--output-format");
+        command.add("stream-json");
         command.add(prompt);
         ModelSelection selection =
                 resolveModelSelection(config.getModel(), config.getReasoningEffort());
-        String model = Util.fixEmptyAndTrim(selection.getModel());
-        if (model != null) {
-            command.add("--model");
-            command.add(model);
-        }
         String reasoningEffort = Util.fixEmptyAndTrim(selection.getReasoningEffort());
         if (reasoningEffort != null) {
             command.add("--effort");

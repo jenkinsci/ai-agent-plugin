@@ -67,17 +67,6 @@ public final class KiroAgentHandler extends AiAgentTypeHandler {
         return KiroStatsExtractor.INSTANCE;
     }
 
-    @Override
-    public AiAgentTypeHandler.AcpExecutionSpec buildAcpExecution(AiAgentConfiguration config) {
-        List<String> command = new ArrayList<>();
-        command.add("kiro-cli");
-        command.add("acp");
-        ModelSelection selection =
-                resolveModelSelection(config.getModel(), config.getReasoningEffort());
-        return new AiAgentTypeHandler.AcpExecutionSpec(
-                command, selection.getModel(), selection.getReasoningEffort());
-    }
-
     @Extension
     @Symbol("kiro")
     public static final class DescriptorImpl extends Descriptor<AiAgentTypeHandler> {

@@ -33,7 +33,7 @@ Plugin ID (artifactId): `ai-agent`
 | [Antigravity CLI](https://antigravity.google/docs/cli/overview) | stream-json | Tokens only |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | stream-json | Tokens only |
 | [Grok Build](https://docs.x.ai/build/overview) | streaming-json / ACP | Full (tokens + cost) |
-| [Kiro CLI](https://kiro.dev/docs/cli/) | plain-text / ACP | Tokens only |
+| [Kiro CLI](https://kiro.dev/docs/cli/) | stream-json | Tokens only |
 
 ## Screenshot
 

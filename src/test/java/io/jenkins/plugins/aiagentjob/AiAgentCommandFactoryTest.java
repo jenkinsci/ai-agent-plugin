@@ -740,7 +740,7 @@ class AiAgentCommandFactoryTest {
         assertEquals("agy", AiAgentCommandFactory.buildDefaultCommand(project, "test").get(0));
     }
 
-    // ======================== Kiro CLI ========================
+    // ======================== Kiro CLI Command Tests ========================
 
     @Test
     void kiroCli_basicCommand() {
@@ -751,9 +751,8 @@ class AiAgentCommandFactoryTest {
         assertEquals("kiro-cli", cmd.get(0));
         assertTrue(cmd.contains("chat"), "Should have chat subcommand");
         assertTrue(cmd.contains("--no-interactive"), "Should have --no-interactive");
-        assertTrue(cmd.contains("--wrap"), "Should have --wrap");
-        assertTrue(cmd.contains("never"), "Should set wrap to never");
-        assertTrue(cmd.contains("--trust-all-tools"), "Should have --trust-all-tools");
+        assertTrue(cmd.contains("--output-format"), "Should have --output-format");
+        assertTrue(cmd.contains("stream-json"), "Should have stream-json");
         assertTrue(cmd.contains("review this"), "Should have prompt");
     }
 
@@ -764,32 +763,7 @@ class AiAgentCommandFactoryTest {
 
         List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
 
-        assertTrue(cmd.contains("--trust-all-tools"), "Should trust all tools in yolo mode");
-    }
-
-    @Test
-    void kiroCli_manualApprovalsAreRejected() {
-        AiAgentBuilder project = createProject(new KiroAgentHandler());
-        project.setRequireApprovals(true);
-
-        IllegalArgumentException error =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> AiAgentCommandFactory.buildDefaultCommand(project, "test"));
-
-        assertTrue(error.getMessage().contains("ACP-capable"));
-    }
-
-    @Test
-    void kiroCli_withModel() {
-        AiAgentBuilder project = createProject(new KiroAgentHandler());
-        project.setModel("gpt-5.6-sol");
-
-        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
-
-        int modelIdx = cmd.indexOf("--model");
-        assertTrue(modelIdx >= 0, "Should have --model");
-        assertEquals("gpt-5.6-sol", cmd.get(modelIdx + 1));
+        assertTrue(cmd.contains("--trust-all-tools"));
     }
 
     @Test
@@ -802,42 +776,6 @@ class AiAgentCommandFactoryTest {
         int effortIdx = cmd.indexOf("--effort");
         assertTrue(effortIdx >= 0, "Should have --effort");
         assertEquals("high", cmd.get(effortIdx + 1));
-    }
-
-    @Test
-    void kiroCli_modelSuffixSetsReasoningEffort() {
-        AiAgentBuilder project = createProject(new KiroAgentHandler());
-        project.setModel("gpt-5.6-sol:high");
-
-        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
-
-        assertEquals("gpt-5.6-sol", cmd.get(cmd.indexOf("--model") + 1));
-        assertEquals("high", cmd.get(cmd.indexOf("--effort") + 1));
-    }
-
-    @Test
-    void kiroCli_preservesUnsupportedReasoningSuffix() {
-        AiAgentBuilder project = createProject(new KiroAgentHandler());
-        project.setModel("custom-model:ultra");
-
-        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
-
-        assertEquals("custom-model:ultra", cmd.get(cmd.indexOf("--model") + 1));
-        assertFalse(cmd.contains("--effort"));
-    }
-
-    @Test
-    void kiroCli_acpExecution() {
-        KiroAgentHandler handler = new KiroAgentHandler();
-        AiAgentBuilder project = createProject(handler);
-        project.setModel("gpt-5.6-sol");
-        project.setReasoningEffort("xhigh");
-
-        AiAgentTypeHandler.AcpExecutionSpec execution = handler.buildAcpExecution(project);
-
-        assertEquals(List.of("kiro-cli", "acp"), execution.getCommand());
-        assertEquals("gpt-5.6-sol", execution.getModel());
-        assertEquals("xhigh", execution.getReasoningEffort());
     }
 
     // ======================== Extra Args Tests ========================

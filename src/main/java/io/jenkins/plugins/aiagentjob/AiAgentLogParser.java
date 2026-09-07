@@ -129,12 +129,6 @@ public final class AiAgentLogParser {
 
         JSONObject json = tryParseJson(trimmed);
         if (json == null) {
-            if (format != null) {
-                List<ParsedLine> raw = format.classifyRaw(lineNumber, trimmed);
-                if (raw != null) {
-                    return raw;
-                }
-            }
             return List.of(ParsedLine.raw(lineNumber, trimmed));
         }
         return classifyJson(lineNumber, json, format);

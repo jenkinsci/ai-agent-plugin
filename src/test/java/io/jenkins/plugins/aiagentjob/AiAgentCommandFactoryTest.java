@@ -12,6 +12,7 @@ import io.jenkins.plugins.aiagentjob.cursor.CursorAgentHandler;
 import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
 import io.jenkins.plugins.aiagentjob.grokbuild.GrokBuildAgentHandler;
 import io.jenkins.plugins.aiagentjob.opencode.OpenCodeAgentHandler;
+import io.jenkins.plugins.aiagentjob.pi.PiAgentHandler;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,7 @@ class AiAgentCommandFactoryTest {
         handlers.add(new GeminiCliAgentHandler());
         handlers.add(new AntigravityAgentHandler());
         handlers.add(new GrokBuildAgentHandler());
+        handlers.add(new PiAgentHandler());
         return handlers;
     }
 

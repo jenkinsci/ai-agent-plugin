@@ -37,6 +37,7 @@ import io.jenkins.plugins.aiagentjob.codex.CodexAgentHandler;
 import io.jenkins.plugins.aiagentjob.cursor.CursorAgentHandler;
 import io.jenkins.plugins.aiagentjob.grokbuild.GrokBuildAgentHandler;
 import io.jenkins.plugins.aiagentjob.opencode.OpenCodeAgentHandler;
+import io.jenkins.plugins.aiagentjob.pi.PiAgentHandler;
 
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.junit.jupiter.api.Test;
@@ -1296,6 +1297,72 @@ class AiAgentBuildExecutionTest {
     private static File installFakeOpenCode(JenkinsRule jenkins, String directoryName)
             throws Exception {
         return installFakeAcp(jenkins, directoryName, "opencode", "fake-opencode-acp.sh");
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void piRunsWithProviderCredentialsAndPropagatesJsonFailures(JenkinsRule jenkins)
+            throws Exception {
+        CredentialsProvider.lookupStores(jenkins.getInstance())
+                .iterator()
+                .next()
+                .addCredentials(
+                        Domain.global(),
+                        new StringCredentialsImpl(
+                                CredentialsScope.GLOBAL,
+                                "pi-key",
+                                "Pi fixture key",
+                                Secret.fromString("pi-synthetic-key")));
+        File bin =
+                installExecutable(
+                        jenkins,
+                        "pi-bin",
+                        "pi",
+                        """
+                #!/bin/sh
+                set -eu
+                [ "$1" = '--print' ] || exit 90
+                [ "$2" = '--mode' ] || exit 91
+                [ "$3" = 'json' ] || exit 92
+                [ "$OPENAI_API_KEY" = 'pi-synthetic-key' ] || exit 93
+                cat "$(dirname "$0")/conversation.jsonl"
+                if [ "${PI_TEST_FAIL:-}" = 'true' ]; then
+                  echo '{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"fixture API error"}}'
+                fi
+                """);
+        try (InputStream fixture =
+                getClass().getResourceAsStream("fixtures/pi-conversation.jsonl")) {
+            assertNotNull(fixture);
+            Files.copy(fixture, new File(bin, "conversation.jsonl").toPath());
+        }
+        FreeStyleProject project =
+                newProject(
+                        jenkins,
+                        "pi-execution",
+                        b -> {
+                            b.setAgent(new PiAgentHandler());
+                            b.setPrompt("Review the project");
+                            b.setExecutablePath(new File(bin, "pi").getAbsolutePath());
+                            b.setModel("openai/gpt-5.5:high");
+                            b.setApiCredentialsId("pi-key");
+                            b.setApiEnvVarName("OPENAI_API_KEY");
+                            b.setFailOnAgentError(true);
+                        });
+        project = jenkins.configRoundtrip(project);
+        AiAgentBuilder builder = (AiAgentBuilder) project.getBuildersList().get(0);
+        assertEquals("PI", builder.getAgent().getId());
+        assertEquals("openai/gpt-5.5:high", builder.getModel());
+        FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
+        AiAgentRunAction action = build.getAction(AiAgentRunAction.class);
+        assertNotNull(action);
+        assertEquals(6, action.getEvents().size());
+        assertEquals(220, action.getUsageStats().getTotalTokens());
+        assertEquals(1, action.getUsageStats().getToolCalls());
+        assertFalse(jenkins.getLog(build).contains("pi-synthetic-key"));
+        builder.setEnvironmentVariables("PI_TEST_FAIL=true");
+        jenkins.assertBuildStatus(Result.FAILURE, project.scheduleBuild2(0).get());
+        builder.setFailOnAgentError(false);
+        jenkins.buildAndAssertSuccess(project);
     }
 
     private static File installFakeGrok(JenkinsRule jenkins, String directoryName)

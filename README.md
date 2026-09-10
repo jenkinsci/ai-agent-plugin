@@ -5,7 +5,7 @@
 [![Jenkins Plugin](https://img.shields.io/badge/Jenkins-2.528.3+-blue.svg)](https://www.jenkins.io/)
 
 A Jenkins plugin that adds a reusable **Run AI Agent** build step for running autonomous coding
-agents (Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build)
+agents (Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, Pi)
 in Jenkins jobs and pipelines.
 
 Plugin ID (artifactId): `ai-agent`
@@ -13,7 +13,7 @@ Plugin ID (artifactId): `ai-agent`
 ## Features
 
 - **Reusable build step** — add `Run AI Agent` to Freestyle jobs or Pipeline via `aiAgent(...)`.
-- **Multiple agent support** — Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, and Grok Build.
+- **Multiple agent support** — Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, and Pi Coding Agent.
 - **Inline conversation view** — live-streaming conversation on the build page with structured display of assistant messages, tool calls with inputs/outputs, and thinking blocks. Multiple invocations in the same build are shown as separate cards (latest expanded, older collapsible).
 - **Markdown rendering** — assistant and result messages are rendered as formatted HTML.
 - **Approval gates** — optionally pause builds for human review before tool execution.
@@ -32,6 +32,7 @@ Plugin ID (artifactId): `ai-agent`
 | [Antigravity CLI](https://antigravity.google/docs/cli/overview) | stream-json | Tokens only |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | stream-json | Tokens only |
 | [Grok Build](https://docs.x.ai/build/overview) | streaming-json / ACP | Full (tokens + cost) |
+| [Pi Coding Agent](https://github.com/earendil-works/pi) | JSON event stream | Full (tokens + cost) |
 
 ## Screenshot
 
@@ -77,8 +78,8 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 ### Pipeline Syntax
 
 The step symbol is `aiAgent`, and agent handlers are referenced by their symbols such as
-`claudeCode()`, `codex()`, `cursor()`, `openCode()`, `antigravity()`, `geminiCli()`, and
-`grok()`.
+`claudeCode()`, `codex()`, `cursor()`, `openCode()`, `antigravity()`, `geminiCli()`,
+`grok()`, and `pi()`.
 
 Minimal invocation (uses default Claude Code handler):
 
@@ -155,6 +156,42 @@ aiAgent(
   reasoningEffort: 'xhigh'
 )
 ```
+
+### Pi Coding Agent
+
+Install [`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi/tree/main/packages/coding-agent)
+on each Jenkins node that runs Pi jobs, with Node.js 22.19.0 or newer. The command
+and event integration is verified against Pi 0.82.1 and uses
+`pi --print --mode json --no-session` for ephemeral, non-interactive runs.
+
+```groovy
+aiAgent(
+  agent: pi(),
+  prompt: 'Review the repository and report potential bugs',
+  model: 'openai/gpt-5.5:xhigh',
+  apiCredentialsId: 'openai-api-key',
+  apiEnvVarName: 'OPENAI_API_KEY'
+)
+```
+
+Use a provider-qualified model or pass `--provider` through Extra args. The separate
+`reasoningEffort` field overrides the `model:effort` suffix and maps to `--thinking`.
+Supported levels are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`;
+model support varies. Jenkins credentials require an explicit provider environment
+variable, such as `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. Preconfigured node-level
+authentication also works without a Jenkins credential.
+
+With YOLO off, the command ignores project-local configuration (`--no-approve`)
+and enables only `read,grep,find,ls`. YOLO enables Pi's default tools and trusts
+project-local configuration (`--approve`). Extension discovery is disabled by
+default in both modes; trusted job authors can explicitly load extensions with
+`-e` in Extra args. Extra args can also override the tool selection.
+
+These controls are **not an OS sandbox**. Run Pi on an isolated Jenkins node with
+only the files and credentials the job needs. Pi does not provide the plugin's
+bidirectional approval channel, so Jenkins manual approvals are rejected. The
+plugin captures assistant text, thinking, tool inputs/outputs, tokens, and cost,
+and fails the build for a final assistant error or abort even if Pi exits zero.
 
 ### Pinning a Node.js Version
 

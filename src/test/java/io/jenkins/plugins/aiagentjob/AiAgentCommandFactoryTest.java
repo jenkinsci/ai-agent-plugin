@@ -11,6 +11,7 @@ import io.jenkins.plugins.aiagentjob.codex.CodexAgentHandler;
 import io.jenkins.plugins.aiagentjob.cursor.CursorAgentHandler;
 import io.jenkins.plugins.aiagentjob.geminicli.GeminiCliAgentHandler;
 import io.jenkins.plugins.aiagentjob.grokbuild.GrokBuildAgentHandler;
+import io.jenkins.plugins.aiagentjob.kiro.KiroAgentHandler;
 import io.jenkins.plugins.aiagentjob.opencode.OpenCodeAgentHandler;
 
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ class AiAgentCommandFactoryTest {
         handlers.add(new GeminiCliAgentHandler());
         handlers.add(new AntigravityAgentHandler());
         handlers.add(new GrokBuildAgentHandler());
+        handlers.add(new KiroAgentHandler());
         return handlers;
     }
 
@@ -736,6 +738,44 @@ class AiAgentCommandFactoryTest {
 
         project.setApiEnvVarName("GOOGLE_APPLICATION_CREDENTIALS");
         assertEquals("agy", AiAgentCommandFactory.buildDefaultCommand(project, "test").get(0));
+    }
+
+    // ======================== Kiro CLI Command Tests ========================
+
+    @Test
+    void kiroCli_basicCommand() {
+        AiAgentBuilder project = createProject(new KiroAgentHandler());
+
+        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "review this");
+
+        assertEquals("kiro-cli", cmd.get(0));
+        assertTrue(cmd.contains("chat"), "Should have chat subcommand");
+        assertTrue(cmd.contains("--no-interactive"), "Should have --no-interactive");
+        assertTrue(cmd.contains("--output-format"), "Should have --output-format");
+        assertTrue(cmd.contains("stream-json"), "Should have stream-json");
+        assertTrue(cmd.contains("review this"), "Should have prompt");
+    }
+
+    @Test
+    void kiroCli_yoloMode() {
+        AiAgentBuilder project = createProject(new KiroAgentHandler());
+        project.setYoloMode(true);
+
+        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
+
+        assertTrue(cmd.contains("--trust-all-tools"));
+    }
+
+    @Test
+    void kiroCli_withReasoningEffort() {
+        AiAgentBuilder project = createProject(new KiroAgentHandler());
+        project.setReasoningEffort("high");
+
+        List<String> cmd = AiAgentCommandFactory.buildDefaultCommand(project, "test");
+
+        int effortIdx = cmd.indexOf("--effort");
+        assertTrue(effortIdx >= 0, "Should have --effort");
+        assertEquals("high", cmd.get(effortIdx + 1));
     }
 
     // ======================== Extra Args Tests ========================

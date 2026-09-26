@@ -28,6 +28,21 @@ public interface AiAgentLogFormat {
     AiAgentLogParser.ParsedLine classify(long lineNumber, JSONObject json);
 
     /**
+     * Attempt to classify a non-JSON log line (raw text) into a parsed event.
+     *
+     * <p>Implementations that handle non-JSON text lines (e.g. ANSI-colored {@code >} prefixed
+     * headless output) should override this method. The default returns {@code null}, meaning the
+     * line should be kept as-is.
+     *
+     * @param lineNumber 1-based line number in the raw log file
+     * @param line the raw (non-JSON) text line
+     * @return a list of classified lines, or {@code null} if this format does not handle raw text
+     */
+    default List<AiAgentLogParser.ParsedLine> classifyRaw(long lineNumber, String line) {
+        return null;
+    }
+
+    /**
      * Attempt to classify a JSON object that may contain multiple displayable events.
      *
      * <p>Implementations that emit at most one event can rely on this default. Returning {@code

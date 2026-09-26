@@ -5,7 +5,7 @@
 [![Jenkins Plugin](https://img.shields.io/badge/Jenkins-2.528.3+-blue.svg)](https://www.jenkins.io/)
 
 A Jenkins plugin that adds a reusable **Run AI Agent** build step for running autonomous coding
-agents (Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, Pi)
+agents (Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, Pi, Kiro CLI)
 in Jenkins jobs and pipelines.
 
 Plugin ID (artifactId): `ai-agent`
@@ -13,7 +13,7 @@ Plugin ID (artifactId): `ai-agent`
 ## Features
 
 - **Reusable build step** — add `Run AI Agent` to Freestyle jobs or Pipeline via `aiAgent(...)`.
-- **Multiple agent support** — Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, and Pi Coding Agent.
+- **Multiple agent support** — Claude Code, Codex CLI, Cursor Agent, OpenCode, Antigravity CLI, Gemini CLI, Grok Build, Pi Coding Agent and Kiro CLI.
 - **Inline conversation view** — live-streaming conversation on the build page with structured display of assistant messages, tool calls with inputs/outputs, and thinking blocks. Multiple invocations in the same build are shown as separate cards (latest expanded, older collapsible).
 - **Markdown rendering** — assistant and result messages are rendered as formatted HTML.
 - **Approval gates** — optionally pause builds for human review before tool execution.
@@ -33,6 +33,7 @@ Plugin ID (artifactId): `ai-agent`
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | stream-json | Tokens only |
 | [Grok Build](https://docs.x.ai/build/overview) | streaming-json / ACP | Full (tokens + cost) |
 | [Pi Coding Agent](https://github.com/earendil-works/pi) | JSON event stream | Full (tokens + cost) |
+| [Kiro CLI](https://kiro.dev/docs/cli/) | stream-json | Tokens only |
 
 ## Screenshot
 
@@ -79,7 +80,7 @@ Build page showing a Cursor Agent conversation with tool calls, markdown-rendere
 
 The step symbol is `aiAgent`, and agent handlers are referenced by their symbols such as
 `claudeCode()`, `codex()`, `cursor()`, `openCode()`, `antigravity()`, `geminiCli()`,
-`grok()`, and `pi()`.
+`grok()`, `pi()` and `kiro()`.
 
 Minimal invocation (uses default Claude Code handler):
 
@@ -154,6 +155,18 @@ aiAgent(
   ),
   prompt: 'Summarize this project',
   reasoningEffort: 'xhigh'
+)
+```
+
+Kiro CLI with API-key authentication and reasoning effort:
+
+```groovy
+aiAgent(
+  agent: kiro(),
+  prompt: 'Review the repository and fix the failing tests',
+  model: 'gpt-5.6-sol',
+  reasoningEffort: 'high',
+  apiCredentialsId: 'kiro-api-key'
 )
 ```
 
@@ -414,6 +427,7 @@ src/main/java/io/jenkins/plugins/aiagentjob/
 ├── cursor/                         # Cursor Agent implementation
 ├── geminicli/                      # Gemini CLI implementation
 ├── grokbuild/                      # Grok Build implementation
+├── kiro/                           # Kiro CLI implementation
 └── opencode/                       # OpenCode implementation
 ```
 

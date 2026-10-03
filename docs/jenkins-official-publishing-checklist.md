@@ -37,16 +37,24 @@ Jenkins distribution. The repository now lives at `jenkinsci/ai-agent-plugin`.
 
 - [x] `.github/workflows/cd.yaml` is present.
 
-## 6. First Official Release
+## 6. First Official Release ✅
 
-- [ ] Merge a PR with a release-triggering label (`bug`, `enhancement`, or `developer`) or run `cd.yaml` manually.
-- [ ] Confirm GitHub Actions CD run is successful.
-- [ ] Confirm release appears on `https://plugins.jenkins.io/ai-agent/`.
-- [ ] Confirm update center metadata shows the released version.
+- [x] Merge a PR with a release-triggering label (`bug`, `enhancement`, or `developer`) or run `cd.yaml` manually.
+- [x] Confirm GitHub Actions CD run is successful.
+- [x] Confirm release appears on `https://plugins.jenkins.io/ai-agent/`.
+- [x] Confirm update center metadata shows the released version.
+
+Verified on October 3, 2026: release
+[`162.vc9c61fc50262`](https://github.com/jenkinsci/ai-agent-plugin/releases/tag/162.vc9c61fc50262)
+was published by the successful
+[CD run](https://github.com/jenkinsci/ai-agent-plugin/actions/runs/36248877571).
+The [plugin directory](https://plugins.jenkins.io/ai-agent/) and
+[update center metadata](https://updates.jenkins.io/current/plugin-versions.json)
+both list this version, requiring Jenkins 2.528.3.
 
 ## 7. Cleanup and Transition
 
 - [x] Retire personal-repo `release.yml` flow to avoid multiple release paths.
 - [x] Delete personal repository `bvolpato/jenkins-ai-agent-plugin`.
 - [x] Update all references to point to `jenkinsci/ai-agent-plugin`.
-- [ ] Keep `main` on next `-SNAPSHOT` after each release.
+- [x] Keep `main` on `${changelist}` with the default `999999-SNAPSHOT`; Jenkins CD computes the release version without a manual version bump.

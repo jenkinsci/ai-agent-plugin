@@ -702,6 +702,63 @@ class AiAgentLogParserTest {
         assertEquals("file contents", update.toEventView().getToolOutput());
     }
 
+    @Test
+    void kiroCliSession_keepsCompleteMessageBoundariesAndMergesAcpChunks() throws IOException {
+        List<AiAgentLogParser.EventView> events =
+                parseFixture("kiro-message-boundaries.jsonl", KiroLogFormat.INSTANCE);
+
+        assertEquals(List.of("assistant", "assistant", "result", "assistant"), categories(events));
+        assertEquals("First complete message.", events.get(0).getContent());
+        assertEquals("Second complete message.", events.get(1).getContent());
+        assertFalse(events.get(0).isDelta());
+        assertFalse(events.get(1).isDelta());
+        assertEquals("Streamed response.", events.get(3).getContent());
+    }
+
+    @Test
+    void kiroCliAcp_preservesJsonRpcErrorMessage() {
+        String json =
+                """
+                {"jsonrpc":"2.0","id":4,"error":{"code":-32000,"message":"Authentication failed"}}
+                """;
+
+        AiAgentLogParser.EventView event =
+                AiAgentLogParser.parseLine(1, json, KiroLogFormat.INSTANCE).toEventView();
+
+        assertEquals("error", event.getCategory());
+        assertEquals("Authentication failed", event.getContent());
+    }
+
+    @Test
+    void kiroCli_preservesNativeRunErrorMessageAndStage() {
+        String json =
+                """
+                {"type":"runError","data":{"message":"Could not initialize agent","stage":"initialize"}}
+                """;
+
+        AiAgentLogParser.EventView event =
+                AiAgentLogParser.parseLine(1, json, KiroLogFormat.INSTANCE).toEventView();
+
+        assertEquals("error", event.getCategory());
+        assertEquals("Could not initialize agent", event.getContent());
+        assertEquals("Error (initialize)", event.getLabel());
+    }
+
+    @Test
+    void kiroCli_preservesTopLevelRunErrorMessageWithNativeStage() {
+        String json =
+                """
+                {"type":"runError","message":"Could not initialize agent","data":{"stage":"initialize"}}
+                """;
+
+        AiAgentLogParser.EventView event =
+                AiAgentLogParser.parseLine(1, json, KiroLogFormat.INSTANCE).toEventView();
+
+        assertEquals("error", event.getCategory());
+        assertEquals("Could not initialize agent", event.getContent());
+        assertEquals("Error (initialize)", event.getLabel());
+    }
+
     // ======================== Error Handling Tests ========================
 
     @Test

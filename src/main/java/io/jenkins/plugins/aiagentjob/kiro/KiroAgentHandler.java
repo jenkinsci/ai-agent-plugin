@@ -46,7 +46,8 @@ public final class KiroAgentHandler extends AiAgentTypeHandler {
         }
         command.add("--output-format");
         command.add("stream-json");
-        command.add(prompt);
+        // Extra args follow the prompt, so an end-of-options marker would consume those flags.
+        command.add(prompt.startsWith("-") ? "\n" + prompt : prompt);
         ModelSelection selection =
                 resolveModelSelection(config.getModel(), config.getReasoningEffort());
         String model = Util.fixEmptyAndTrim(selection.getModel());

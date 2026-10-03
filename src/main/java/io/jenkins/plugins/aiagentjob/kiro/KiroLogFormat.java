@@ -1,5 +1,6 @@
 package io.jenkins.plugins.aiagentjob.kiro;
 
+import io.jenkins.plugins.aiagentjob.AcpLogFormat;
 import io.jenkins.plugins.aiagentjob.AiAgentLogFormat;
 import io.jenkins.plugins.aiagentjob.AiAgentLogParser;
 import io.jenkins.plugins.aiagentjob.LogFormatUtils;
@@ -39,7 +40,8 @@ public final class KiroLogFormat implements AiAgentLogFormat {
         if (!type.isEmpty()) {
             return classifyTypedJson(lineNumber, json, type);
         }
-        return null;
+        AiAgentLogParser.ParsedLine acpLine = AcpLogFormat.INSTANCE.classify(lineNumber, json);
+        return acpLine == null ? null : List.of(acpLine);
     }
 
     @Override
@@ -119,12 +121,7 @@ public final class KiroLogFormat implements AiAgentLogFormat {
                     if (!text.isEmpty()) {
                         events.add(
                                 AiAgentLogParser.ParsedLine.message(
-                                        lineNumber,
-                                        "assistant",
-                                        "Assistant",
-                                        text,
-                                        rawDetails,
-                                        true));
+                                        lineNumber, "assistant", "Assistant", text, rawDetails));
                     }
                 } else if ("tooluse".equals(blockKind)) {
                     JSONObject toolData = block.optJSONObject("data");
@@ -279,6 +276,18 @@ public final class KiroLogFormat implements AiAgentLogFormat {
             return null;
         }
         String rawDetails = json.toString(2);
+        if (typeLower.equals("runerror")) {
+            JSONObject data = json.optJSONObject("data");
+            String message = LogFormatUtils.firstNonEmpty(data, "message");
+            if (message.isEmpty()) {
+                message = LogFormatUtils.extractText(json);
+            }
+            String stage = LogFormatUtils.firstNonEmpty(data, "stage");
+            String label = stage.isEmpty() ? "Error" : "Error (" + stage + ")";
+            return List.of(
+                    AiAgentLogParser.ParsedLine.message(
+                            lineNumber, "error", label, message, rawDetails));
+        }
         if (typeLower.equals("sessionupdate")) {
             JSONObject data = json.optJSONObject("data");
             if (data == null) {

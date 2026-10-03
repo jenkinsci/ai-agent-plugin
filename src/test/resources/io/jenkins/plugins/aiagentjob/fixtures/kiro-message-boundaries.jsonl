@@ -1,0 +1,5 @@
+{"kind":"AssistantMessage","data":{"message_id":"assistant-1","content":[{"kind":"text","data":"First complete message."}]}}
+{"kind":"AssistantMessage","data":{"message_id":"assistant-2","content":[{"kind":"text","data":"Second complete message."}]}}
+{"type":"RunFinished","data":{"stopReason":"end_turn"}}
+{"type":"SessionUpdate","data":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Streamed"}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":" response."}}}}

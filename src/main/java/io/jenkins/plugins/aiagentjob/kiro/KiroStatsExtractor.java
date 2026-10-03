@@ -25,7 +25,8 @@ public final class KiroStatsExtractor implements AiAgentStatsExtractor {
         }
         String method = json.optString("method", "");
         if ("session/update".equals(method)) {
-            return extractAcpUpdate(json, stats);
+            JSONObject params = json.optJSONObject("params");
+            return extractAcpUpdate(params == null ? null : params.optJSONObject("update"), stats);
         }
         return false;
     }
@@ -86,6 +87,10 @@ public final class KiroStatsExtractor implements AiAgentStatsExtractor {
 
     private boolean extractTypedJson(JSONObject json, AgentUsageStats stats) {
         String type = LogFormatUtils.normalize(json.optString("type", ""));
+        if ("sessionupdate".equals(type)) {
+            JSONObject data = json.optJSONObject("data");
+            return extractAcpUpdate(data == null ? null : data.optJSONObject("update"), stats);
+        }
         if ("init".equals(type)) {
             stats.setDetectedModelIfEmpty(LogFormatUtils.firstNonEmpty(json, "model"));
             return true;
@@ -102,9 +107,7 @@ public final class KiroStatsExtractor implements AiAgentStatsExtractor {
         return false;
     }
 
-    private boolean extractAcpUpdate(JSONObject json, AgentUsageStats stats) {
-        JSONObject params = json.optJSONObject("params");
-        JSONObject update = params == null ? null : params.optJSONObject("update");
+    private boolean extractAcpUpdate(JSONObject update, AgentUsageStats stats) {
         if (update == null) {
             return false;
         }
@@ -114,10 +117,18 @@ public final class KiroStatsExtractor implements AiAgentStatsExtractor {
             return true;
         }
         if ("tool_call".equals(updateType)) {
-            stats.recordToolCall(LogFormatUtils.firstNonEmpty(update, "toolCallId"));
+            stats.recordToolCall(
+                    LogFormatUtils.firstNonEmpty(update, "toolCallId", "tool_call_id", "id"));
             return true;
         }
         if ("usage_update".equals(updateType)) {
+            long used = update.optLong("used", 0);
+            stats.addInputTokens(used);
+            stats.addTotalTokens(used);
+            JSONObject cost = update.optJSONObject("cost");
+            if (cost != null && "USD".equalsIgnoreCase(cost.optString("currency", ""))) {
+                stats.addCostUsd(cost.optDouble("amount", 0));
+            }
             JSONObject usage = update.optJSONObject("usage");
             if (usage != null) {
                 accumulateUsage(usage, stats);

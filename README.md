@@ -158,17 +158,31 @@ aiAgent(
 )
 ```
 
-Kiro CLI with API-key authentication and reasoning effort:
+Kiro CLI with API-key authentication and trusted tools:
 
 ```groovy
 aiAgent(
   agent: kiro(),
   prompt: 'Review the repository and fix the failing tests',
-  model: 'gpt-5.6-sol',
   reasoningEffort: 'high',
-  apiCredentialsId: 'kiro-api-key'
+  apiCredentialsId: 'kiro-api-key',
+  yoloMode: true
 )
 ```
+
+Kiro jobs use `kiro-cli chat --no-interactive --output-format stream-json`.
+The command flags are verified against Kiro CLI 2.27.1.
+YOLO adds `--trust-all-tools`, as required by this example's edits and test runs.
+With YOLO off, the plugin leaves Kiro's configured tool permissions in effect.
+For selected tool access in headless reviews, use Extra args such as
+`--trust-tools=fs_read`. A tool request that needs an interactive approval cannot
+be approved through Jenkins; Kiro jobs reject Jenkins manual approvals before launch.
+See [Kiro headless mode](https://kiro.dev/docs/cli/headless/) for the trust options.
+
+Jenkins injects the selected credential as `KIRO_API_KEY`. Kiro's
+[authentication precedence](https://kiro.dev/docs/cli/authentication/) gives an active
+browser session priority over an API key, so use a Jenkins node account without a
+cached Kiro login when the job must use that credential.
 
 ### Pi Coding Agent
 

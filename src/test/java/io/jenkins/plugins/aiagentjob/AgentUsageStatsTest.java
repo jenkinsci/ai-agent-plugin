@@ -296,6 +296,67 @@ class AgentUsageStatsTest {
         assertEquals(1, stats.getToolCalls());
     }
 
+    @Test
+    void kiroCli_countsWrappedAcpToolCallsWithoutDuplicates() {
+        AgentUsageStats stats = new AgentUsageStats();
+        String update =
+                """
+                {"sessionUpdate":"tool_call","toolCallId":"call-1","title":"read"}
+                """;
+
+        stats.extractFrom(kiroAcpUpdate(update, true), KiroStatsExtractor.INSTANCE);
+        stats.extractFrom(kiroAcpUpdate(update, true), KiroStatsExtractor.INSTANCE);
+        stats.extractFrom(kiroAcpUpdate(update, false), KiroStatsExtractor.INSTANCE);
+        stats.extractFrom(
+                kiroAcpUpdate(
+                        """
+                        {"sessionUpdate":"tool_call","toolCallId":"call-2","title":"read"}
+                        """,
+                        true),
+                KiroStatsExtractor.INSTANCE);
+
+        assertEquals(2, stats.getToolCalls());
+    }
+
+    @Test
+    void kiroCli_acpUsageUsesCumulativeValues() {
+        assertKiroCumulativeAcpUsage(false);
+    }
+
+    @Test
+    void kiroCli_wrappedAcpUsageUsesCumulativeValues() {
+        assertKiroCumulativeAcpUsage(true);
+    }
+
+    private void assertKiroCumulativeAcpUsage(boolean wrapped) {
+        AgentUsageStats stats = new AgentUsageStats();
+        stats.extractFrom(
+                kiroAcpUpdate(
+                        """
+                        {"sessionUpdate":"usage_update","used":40,"cost":{"amount":0.01,"currency":"USD"}}
+                        """,
+                        wrapped),
+                KiroStatsExtractor.INSTANCE);
+        stats.extractFrom(
+                kiroAcpUpdate(
+                        """
+                        {"sessionUpdate":"usage_update","used":55,"cost":{"amount":0.02,"currency":"USD"}}
+                        """,
+                        wrapped),
+                KiroStatsExtractor.INSTANCE);
+
+        assertEquals(55, stats.getInputTokens());
+        assertEquals(55, stats.getTotalTokens());
+        assertEquals(0.02, stats.getCostUsd(), 0.0001);
+    }
+
+    private JSONObject kiroAcpUpdate(String update, boolean wrapped) {
+        return JSONObject.fromObject(
+                wrapped
+                        ? "{\"type\":\"SessionUpdate\",\"data\":{\"update\":" + update + "}}"
+                        : "{\"method\":\"session/update\",\"params\":{\"update\":" + update + "}}");
+    }
+
     // ======================== Edge cases ========================
 
     @Test

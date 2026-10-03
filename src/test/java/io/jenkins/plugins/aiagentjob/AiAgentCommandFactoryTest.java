@@ -780,6 +780,23 @@ class AiAgentCommandFactoryTest {
         assertEquals("high", cmd.get(effortIdx + 1));
     }
 
+    @Test
+    void kiroCli_optionLikePromptRemainsInputWithoutConsumingExtraArgs() {
+        AiAgentBuilder project = createProject(new KiroAgentHandler());
+        project.setExtraArgs("--trust-tools=fs_read");
+
+        assertEquals(
+                List.of(
+                        "kiro-cli",
+                        "chat",
+                        "--no-interactive",
+                        "--output-format",
+                        "stream-json",
+                        "\n--help",
+                        "--trust-tools=fs_read"),
+                AiAgentCommandFactory.buildDefaultCommand(project, "--help"));
+    }
+
     // ======================== Extra Args Tests ========================
 
     @Test

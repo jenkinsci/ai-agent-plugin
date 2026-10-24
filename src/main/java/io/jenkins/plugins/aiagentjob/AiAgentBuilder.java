@@ -57,6 +57,7 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     private String apiCredentialsId = "";
     private String apiEnvVarName = "";
     private boolean disableInteractive;
+    private String rawLogPath = "";
 
     @DataBoundConstructor
     public AiAgentBuilder() {}
@@ -259,6 +260,16 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
     }
 
     @Override
+    public String getRawLogPath() {
+        return rawLogPath;
+    }
+
+    @DataBoundSetter
+    public void setRawLogPath(String rawLogPath) {
+        this.rawLogPath = Util.fixNull(rawLogPath).trim();
+    }
+
+    @Override
     public String getEffectiveApiKeyEnvVar() {
         String custom = Util.fixEmptyAndTrim(apiEnvVarName);
         return custom != null ? custom : getAgent().getDefaultApiKeyEnvVar();
@@ -279,6 +290,7 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
         setupScript = Util.fixNull(setupScript);
         apiCredentialsId = Util.fixNull(apiCredentialsId);
         apiEnvVarName = Util.fixNull(apiEnvVarName);
+        rawLogPath = Util.fixNull(rawLogPath).trim();
         approvalTimeoutSeconds = Math.max(1, approvalTimeoutSeconds);
         return this;
     }
@@ -347,6 +359,14 @@ public class AiAgentBuilder extends Builder implements SimpleBuildStep, AiAgentC
             } catch (NumberFormatException e) {
                 return FormValidation.error("Timeout must be a number.");
             }
+        }
+
+        @POST
+        public FormValidation doCheckRawLogPath(
+                @AncestorInPath Item item, @QueryParameter String value) {
+            checkConfigurationPermission(item);
+            String error = AiAgentRawLogExport.validationError(value);
+            return error == null ? FormValidation.ok() : FormValidation.error(error);
         }
 
         private static boolean isTruthy(String raw) {

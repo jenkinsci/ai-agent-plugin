@@ -65,5 +65,9 @@
     <f:entry title="Fail build on agent non-zero exit" field="failOnAgentError">
       <f:checkbox />
     </f:entry>
+
+    <f:entry title="Save raw log to workspace path (optional)" field="rawLogPath" description="Relative to the workspace root, for example ai-logs/review.jsonl. Written after the agent exits.">
+      <f:textbox />
+    </f:entry>
   </f:advanced>
 </j:jelly>

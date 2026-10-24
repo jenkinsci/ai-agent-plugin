@@ -31,4 +31,28 @@ class AiAgentBuilderDescriptorValidationTest {
 
         assertEquals(FormValidation.Kind.ERROR, result.kind);
     }
+
+    @Test
+    void rawLogPath_acceptsWorkspaceRelativeFile(JenkinsRule jenkins) throws Exception {
+        FreeStyleProject project = jenkins.createFreeStyleProject("ai-validation-raw-log-ok");
+        AiAgentBuilder.DescriptorImpl descriptor = new AiAgentBuilder.DescriptorImpl();
+
+        assertEquals(FormValidation.Kind.OK, descriptor.doCheckRawLogPath(project, "").kind);
+        assertEquals(
+                FormValidation.Kind.OK,
+                descriptor.doCheckRawLogPath(project, "ai-logs/run.jsonl").kind);
+    }
+
+    @Test
+    void rawLogPath_rejectsPathOutsideWorkspace(JenkinsRule jenkins) throws Exception {
+        FreeStyleProject project = jenkins.createFreeStyleProject("ai-validation-raw-log-bad");
+        AiAgentBuilder.DescriptorImpl descriptor = new AiAgentBuilder.DescriptorImpl();
+
+        assertEquals(
+                FormValidation.Kind.ERROR,
+                descriptor.doCheckRawLogPath(project, "../run.jsonl").kind);
+        assertEquals(
+                FormValidation.Kind.ERROR,
+                descriptor.doCheckRawLogPath(project, "/var/log/run.jsonl").kind);
+    }
 }

@@ -1,0 +1,28 @@
+<div>
+  <p>
+    Optional file path, relative to the workspace root, that receives a copy of the
+    raw agent log after the agent process exits. Leave empty to keep the log only on
+    the build page. The path does not depend on <b>Working directory</b>.
+  </p>
+  <p>
+    The file contains the same lines as the raw log on the build page: agent stdout
+    and stderr, one line per entry, with the injected API key credential masked.
+    Other secrets the agent reads or prints are <b>not</b> masked. An existing file at
+    the path is removed before the agent starts and replaced after it exits, so use a
+    distinct path for each invocation, for example
+    <code>ai-logs/${BUILD_NUMBER}-review.jsonl</code>. Environment variables are
+    expanded, and both <code>/</code> and <code>\</code> separate directories.
+  </p>
+  <p>
+    The copy is also attempted when the agent fails, times out, or the build is
+    aborted. If the copy fails, the build fails; when the step already failed with an
+    error, such as an abort, the copy failure is logged and attached to that error.
+    Absolute paths, <code>..</code> segments, and parent directories that resolve
+    outside the workspace through symlinks are rejected. A symlink, FIFO, or file at
+    the target path is removed and the log is written to a newly created file.
+  </p>
+  <p>
+    Archive or ship the file with later steps, for example <code>archiveArtifacts</code>
+    or an upload to your log storage.
+  </p>
+</div>

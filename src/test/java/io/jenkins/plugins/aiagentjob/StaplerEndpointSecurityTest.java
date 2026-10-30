@@ -27,6 +27,10 @@ class StaplerEndpointSecurityTest {
                                 String.class,
                                 String.class)
                         .isAnnotationPresent(POST.class));
+        assertTrue(
+                AiAgentBuilder.DescriptorImpl.class
+                        .getMethod("doCheckRawLogPath", hudson.model.Item.class, String.class)
+                        .isAnnotationPresent(POST.class));
     }
 
     @Test

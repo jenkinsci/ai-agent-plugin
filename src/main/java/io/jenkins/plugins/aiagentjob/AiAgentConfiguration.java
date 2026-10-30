@@ -37,4 +37,12 @@ public interface AiAgentConfiguration {
     String getEffectiveApiKeyEnvVar();
 
     boolean isDisableInteractive();
+
+    /**
+     * Workspace-relative file that receives a copy of the raw agent log after the agent exits.
+     * Empty disables the export.
+     */
+    default String getRawLogPath() {
+        return "";
+    }
 }

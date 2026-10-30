@@ -44,6 +44,7 @@ class AiAgentBuilderConfigRoundTripTest {
         builder.setSetupScript("export PATH=$HOME/.local/bin:$PATH\nnpm install");
         builder.setFailOnAgentError(false);
         builder.setDisableInteractive(true);
+        builder.setRawLogPath("ai-logs/${BUILD_NUMBER}.jsonl");
         project.getBuildersList().add(builder);
         project.save();
 
@@ -67,6 +68,7 @@ class AiAgentBuilderConfigRoundTripTest {
         assertEquals("export PATH=$HOME/.local/bin:$PATH\nnpm install", reloaded.getSetupScript());
         assertFalse(reloaded.isFailOnAgentError());
         assertTrue(reloaded.isDisableInteractive());
+        assertEquals("ai-logs/${BUILD_NUMBER}.jsonl", reloaded.getRawLogPath());
     }
 
     @Test

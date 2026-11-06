@@ -54,7 +54,7 @@
       <dependency>
         <groupId>org.webjars.npm</groupId>
         <artifactId>marked</artifactId>
-        <version>18.1.1</version>
+        <version>18.1.2</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -93,7 +93,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.15</version>
+        <version>0.8.16</version>
         <executions>
           <execution>
             <goals>

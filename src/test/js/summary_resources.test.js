@@ -1,5 +1,8 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const { parseHTML } = require('linkedom');
 
 const { document, window } = parseHTML(
@@ -136,4 +139,55 @@ test('completed tool event renders both input and output when expanded', functio
   assert.equal(sections[0].textContent, 'check-project --mode focused');
   assert.equal(sections[1].textContent, '8 checks passed');
   assert.match(container.querySelector('summary').textContent, /check-project --mode focused/);
+});
+
+test('unpacked Marked bundle renders GFM and sanitizes unsafe links', function (t) {
+  const bundlePath = path.resolve(__dirname, '../../main/webapp/js/bundles/marked.umd.js');
+  if (!fs.existsSync(bundlePath)) {
+    t.skip('marked bundle not unpacked; run mvn process-resources');
+    return;
+  }
+
+  const browserGlobal = {};
+  vm.runInNewContext(fs.readFileSync(bundlePath, 'utf8'), browserGlobal);
+  window.marked = browserGlobal.marked;
+
+  try {
+    assert.equal(typeof window.marked.parse, 'function');
+
+    const container = document.createElement('div');
+    container.insertAdjacentHTML('beforeend', renderEvent({
+      category: 'assistant',
+      label: 'Assistant',
+      content: [
+        '# Summary',
+        '',
+        '| Check | Result |',
+        '| --- | --- |',
+        '| Build | `pass` |',
+        '',
+        '[docs](https://example.com/docs) [unsafe](javascript:alert(1)) <script>alert(1)</script>'
+      ].join('\n')
+    }));
+
+    const assistant = container.querySelector('.ai-msg-content-assistant');
+    assert.equal(assistant.querySelector('h1').textContent, 'Summary');
+    assert.equal(assistant.querySelectorAll('th').length, 2);
+    assert.equal(assistant.querySelector('td code').textContent, 'pass');
+
+    const links = assistant.querySelectorAll('a');
+    assert.equal(links.length, 2);
+    assert.equal(links[0].getAttribute('href'), 'https://example.com/docs');
+    assert.equal(links[1].hasAttribute('href'), false);
+    assert.equal(assistant.querySelector('script'), null);
+
+    assert.equal(appendDelta(container, {
+      category: 'assistant',
+      delta: true,
+      content: '\n\nStatus: **done**'
+    }), true);
+    assert.match(assistant.innerHTML, /<strong>done<\/strong>/);
+  } finally {
+    delete window.marked;
+  }
 });
